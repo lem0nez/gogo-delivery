@@ -3,6 +3,7 @@ CREATE TABLE public.food
     id serial NOT NULL,
     title character varying(128) NOT NULL,
     description text,
+    -- Image in JPEG format.
     preview bytea,
     category_id serial NOT NULL,
     count integer NOT NULL DEFAULT 0,
