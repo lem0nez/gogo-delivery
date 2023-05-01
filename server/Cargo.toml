@@ -2,6 +2,9 @@
 name = "gogo-delivery"
 version = "0.1.0"
 edition = "2021"
+authors = ["Nikita Dudko <nikita.dudko.95@gmail.com>"]
+repository = "https://github.com/lem0nez/gogo-delivery"
+license = "MIT"
 
 [dependencies]
 actix-cors = "0.6.4"
