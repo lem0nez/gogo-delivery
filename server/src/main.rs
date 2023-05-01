@@ -5,20 +5,11 @@
 use std::sync::Arc;
 
 use actix_cors::Cors;
-use actix_web::{
-    guard,
-    http::header,
-    middleware::Logger,
-    web::{self, Data},
-    App, HttpServer,
-};
-use actix_web_httpauth::middleware::HttpAuthentication;
+use actix_web::{http::header, middleware::Logger, web::Data, App, HttpServer};
 use async_graphql::{EmptySubscription, Schema};
 use env_logger::Env;
 
-use gogo_delivery::{
-    auth_validator, db, mutation::MutationRoot, playground, query::QueryRoot, request,
-};
+use gogo_delivery::{db, mutation::MutationRoot, query::QueryRoot, rest};
 
 const SERVER_ADDRESS: (&str, u16) = ("0.0.0.0", 5000);
 const CORS_MAX_AGE_SECS: usize = 3600;
@@ -51,18 +42,7 @@ async fn main() -> anyhow::Result<()> {
             .wrap(cors)
             .app_data(Data::new(schema.clone()))
             .app_data(Data::new(Arc::clone(&db)))
-            .service(
-                web::resource("/")
-                    .wrap(HttpAuthentication::basic(auth_validator))
-                    .guard(guard::Post())
-                    .to(request),
-            )
-            .service(
-                web::resource("/")
-                    .wrap(HttpAuthentication::basic(auth_validator))
-                    .guard(guard::Get())
-                    .to(playground),
-            )
+            .configure(rest::configure_service)
     });
     server.bind(SERVER_ADDRESS)?.run().await.map_err(Into::into)
 }
