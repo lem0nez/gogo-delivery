@@ -11,7 +11,7 @@ CREATE TABLE public.food
     category_id serial NOT NULL,
     count integer NOT NULL DEFAULT 0,
     is_alcohol boolean NOT NULL,
-    price_byn numeric(7, 2) NOT NULL,
+    price numeric(7, 2) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT category_id FOREIGN KEY (category_id)
         REFERENCES public.categories (id) MATCH SIMPLE
