@@ -1,3 +1,7 @@
+// Copyright © 2023 Nikita Dudko. All rights reserved.
+// Contacts: <nikita.dudko.95@gmail.com>
+// Licensed under the MIT License.
+
 use async_graphql::{Enum, InputObject, SimpleObject};
 use chrono::{NaiveDate, NaiveDateTime};
 use postgres_types::{FromSql, ToSql};
