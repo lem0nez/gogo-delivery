@@ -14,7 +14,8 @@ CREATE TABLE public.favorites
         REFERENCES public.food (id) MATCH SIMPLE
         ON UPDATE NO ACTION
         ON DELETE CASCADE
-        NOT VALID
+        NOT VALID,
+    CONSTRAINT food_per_user UNIQUE (user_id, food_id)
 );
 
 ALTER TABLE IF EXISTS public.favorites

@@ -2,15 +2,19 @@
 // Contacts: <nikita.dudko.95@gmail.com>
 // Licensed under the MIT License.
 
-use std::env;
+use std::{collections::HashMap, env};
 
+use anyhow::anyhow;
 use log::error;
 use serde::Deserialize;
 use tokio_postgres::{NoTls, Row};
 
 use crate::{
     sha256,
-    types::{Address, Category, IndexedFood, Notification, SortFoodBy, SortOrder, User, ID},
+    types::{
+        Address, Category, Favorite, Food, IndexedFavorite, IndexedFood, Notification, SortFoodBy,
+        SortOrder, User, ID,
+    },
 };
 
 #[derive(Clone, Copy, Deserialize)]
@@ -67,7 +71,7 @@ impl Client {
     pub async fn user_notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
         self.client
             .query(
-                include_str!("sql/select_notifications.sql"),
+                include_str!("sql/select_user_notifications.sql"),
                 &[&self.user_id_by_name(username).await?],
             )
             .await
@@ -77,7 +81,7 @@ impl Client {
     pub async fn user_addresses(&self, username: &str) -> PostgresResult<Vec<Address>> {
         self.client
             .query(
-                include_str!("sql/select_addresses.sql"),
+                include_str!("sql/select_user_addresses.sql"),
                 &[&self.user_id_by_name(username).await?],
             )
             .await
@@ -125,8 +129,63 @@ impl Client {
             .map(|row| row.get(0))
     }
 
+    pub async fn user_favorites(&self, username: &str) -> anyhow::Result<Vec<Favorite>> {
+        let mut food: HashMap<_, _> = self
+            .food()
+            .await?
+            .into_iter()
+            .map(|food| (food.indexed_food.id, food))
+            .collect();
+        let indexed_favorites: Vec<IndexedFavorite> = self
+            .client
+            .query(
+                include_str!("sql/select_user_favorites.sql"),
+                &[&self.user_id_by_name(username).await?],
+            )
+            .await
+            .map(from_rows)?;
+        let mut favorites = Vec::with_capacity(indexed_favorites.capacity());
+
+        for indexed_favorite in indexed_favorites {
+            favorites.push(Favorite {
+                food: food
+                    .remove(&indexed_favorite.food_id)
+                    .ok_or(anyhow!("database was changed during data merging"))?,
+                indexed_favorite,
+            })
+        }
+        Ok(favorites)
+    }
+
     async fn user_id_by_name(&self, username: &str) -> PostgresResult<ID> {
         self.user_by_name(username).await.map(|user| user.id)
+    }
+
+    async fn food(&self) -> anyhow::Result<Vec<Food>> {
+        let categories: HashMap<_, _> = self
+            .categories()
+            .await?
+            .into_iter()
+            .map(|category| (category.id, category))
+            .collect();
+        let indexed_food: Vec<IndexedFood> = self
+            .client
+            .query(include_str!("sql/select_food.sql"), &[])
+            .await
+            .map(from_rows)?;
+
+        let mut food = Vec::with_capacity(indexed_food.capacity());
+        // Using loop instead of closure because we must be able to propage an error.
+        for indexed_food in indexed_food {
+            food.push(Food {
+                category: categories
+                    .get(&indexed_food.category_id)
+                    .ok_or(anyhow!("database was changed during data merging"))?
+                    .clone(),
+                indexed_food,
+            });
+        }
+        Ok(food)
     }
 }
 

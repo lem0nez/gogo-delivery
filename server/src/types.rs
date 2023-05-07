@@ -119,7 +119,7 @@ impl From<Row> for Address {
     }
 }
 
-#[derive(SimpleObject, InputObject)]
+#[derive(Clone, SimpleObject, InputObject)]
 #[graphql(input_name = "CategoryInput")]
 pub struct Category {
     #[graphql(skip_input)]
@@ -185,7 +185,7 @@ impl SortFoodBy {
 #[derive(SimpleObject)]
 pub struct Food {
     pub category: Category,
-    pub food_data: IndexedFood,
+    pub indexed_food: IndexedFood,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -228,7 +228,7 @@ impl SortCartBy {
 #[derive(SimpleObject)]
 pub struct Cart {
     pub food: Food,
-    pub cart_data: IndexedCart,
+    pub indexed_cart: IndexedCart,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -254,7 +254,7 @@ impl From<Row> for IndexedFavorite {
 #[derive(SimpleObject)]
 pub struct Favorite {
     pub food: Food,
-    pub favorite_data: IndexedFavorite,
+    pub indexed_favorite: IndexedFavorite,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -291,7 +291,7 @@ pub struct Order {
     pub address: Address,
     pub rider: User,
     pub food: Vec<OrderItem>,
-    pub order_data: IndexedOrder,
+    pub indexed_order: IndexedOrder,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -316,7 +316,7 @@ impl From<Row> for IndexedOrderItem {
 #[derive(SimpleObject)]
 pub struct OrderItem {
     pub food: Food,
-    pub order_item_data: IndexedOrderItem,
+    pub indexed_item: IndexedOrderItem,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -344,5 +344,5 @@ impl From<Row> for IndexedFeedback {
 #[derive(SimpleObject)]
 pub struct Feedback {
     pub order: Order,
-    pub feedback_data: IndexedFeedback,
+    pub indexed_feedback: IndexedFeedback,
 }
