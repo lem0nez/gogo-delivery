@@ -11,13 +11,14 @@ actix-cors = "0.6.4"
 actix-web = "4.3.1"
 actix-web-httpauth = "0.8.0"
 anyhow = "1.0.71"
-async-graphql = { version = "5.0.7", features = ["chrono"] }
+async-graphql = { version = "5.0.7", features = ["chrono", "decimal"] }
 async-graphql-actix-web = "5.0.7"
 base64 = "0.21.0"
 chrono = "0.4.24"
 env_logger = "0.10.0"
 log = "0.4.17"
 postgres-types = { version = "0.2.5", features = ["derive"] }
+rust_decimal = { version = "1.29.1", features = ["db-tokio-postgres"] }
 serde = { version = "1.0.160", features = ["derive"] }
 sha2 = "0.10.6"
 tokio = "1.28.0"

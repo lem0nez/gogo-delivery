@@ -10,7 +10,7 @@ use tokio_postgres::{NoTls, Row};
 
 use crate::{
     sha256,
-    types::{Category, Notification, User, ID},
+    types::{Category, Food, FoodOrder, Notification, User, ID},
 };
 
 #[derive(Clone, Copy, Deserialize)]
@@ -79,6 +79,16 @@ impl Client {
             .query(include_str!("sql/select_categories.sql"), &[])
             .await
             .map(from_rows)
+    }
+
+    pub async fn food(&self, category_id: ID, order_by: FoodOrder) -> PostgresResult<Vec<Food>> {
+        let mut food = self
+            .client
+            .query(include_str!("sql/select_food.sql"), &[&category_id])
+            .await
+            .map(from_rows)?;
+        food.sort_by(|lhs, rhs| order_by.cmp(lhs, rhs));
+        Ok(food)
     }
 
     pub async fn preview(&self, of: PreviewOf, id: ID) -> PostgresResult<Vec<u8>> {

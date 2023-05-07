@@ -2,9 +2,12 @@
 // Contacts: <nikita.dudko.95@gmail.com>
 // Licensed under the MIT License.
 
+use std::cmp::Ordering;
+
 use async_graphql::{Enum, InputObject, SimpleObject};
 use chrono::{NaiveDate, NaiveDateTime};
 use postgres_types::{FromSql, ToSql};
+use rust_decimal::Decimal;
 use tokio_postgres::Row;
 
 pub type ID = i32;
@@ -120,7 +123,7 @@ pub struct Food {
     pub description: Option<String>,
     pub count: i32,
     pub is_alcohol: bool,
-    pub price: f64,
+    pub price: Decimal,
 }
 
 impl From<Row> for Food {
@@ -132,6 +135,23 @@ impl From<Row> for Food {
             count: row.get("count"),
             is_alcohol: row.get("is_alcohol"),
             price: row.get("price"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Enum)]
+pub enum FoodOrder {
+    Title,
+    Count,
+    Price,
+}
+
+impl FoodOrder {
+    pub fn cmp(&self, lhs: &Food, rhs: &Food) -> Ordering {
+        match self {
+            Self::Title => lhs.title.cmp(&rhs.title),
+            Self::Count => lhs.count.cmp(&rhs.count),
+            Self::Price => lhs.price.partial_cmp(&rhs.price).unwrap_or(Ordering::Equal),
         }
     }
 }

@@ -8,7 +8,7 @@ use async_graphql::{Context, Object, Result};
 
 use crate::{
     auth_from_ctx, db,
-    types::{Category, Notification, User},
+    types::{Category, Food, FoodOrder, Notification, User, ID},
 };
 
 pub struct QueryRoot {
@@ -39,5 +39,12 @@ impl QueryRoot {
 
     async fn categories(&self) -> Result<Vec<Category>> {
         self.db.categories().await.map_err(Into::into)
+    }
+
+    async fn food(&self, category_id: ID, order_by: FoodOrder) -> Result<Vec<Food>> {
+        self.db
+            .food(category_id, order_by)
+            .await
+            .map_err(Into::into)
     }
 }
