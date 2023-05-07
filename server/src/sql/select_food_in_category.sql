@@ -1,8 +1,9 @@
 SELECT
     id,
     title,
-    -- Do not select 'preview' as it contains large data (JPEG image).
     description,
+    -- Do not select 'preview' as it contains large data (JPEG image).
+    category_id,
     count,
     is_alcohol,
     price

@@ -8,7 +8,7 @@ use async_graphql::{Context, Object, Result};
 
 use crate::{
     auth_from_ctx, db,
-    types::{Address, Category, Food, FoodOrder, Notification, User, ID},
+    types::{Address, Category, IndexedFood, Notification, SortFoodBy, SortOrder, User, ID},
 };
 
 pub struct QueryRoot {
@@ -25,21 +25,21 @@ impl QueryRoot {
 impl QueryRoot {
     async fn current_user(&self, ctx: &Context<'_>) -> Result<User> {
         self.db
-            .user(auth_from_ctx(ctx).user_id())
+            .user_by_name(auth_from_ctx(ctx).user_id())
             .await
             .map_err(Into::into)
     }
 
-    async fn notifications(&self, ctx: &Context<'_>) -> Result<Vec<Notification>> {
+    async fn user_notifications(&self, ctx: &Context<'_>) -> Result<Vec<Notification>> {
         self.db
-            .notifications(auth_from_ctx(ctx).user_id())
+            .user_notifications(auth_from_ctx(ctx).user_id())
             .await
             .map_err(Into::into)
     }
 
-    async fn addresses(&self, ctx: &Context<'_>) -> Result<Vec<Address>> {
+    async fn user_addresses(&self, ctx: &Context<'_>) -> Result<Vec<Address>> {
         self.db
-            .addresses(auth_from_ctx(ctx).user_id())
+            .user_addresses(auth_from_ctx(ctx).user_id())
             .await
             .map_err(Into::into)
     }
@@ -48,9 +48,14 @@ impl QueryRoot {
         self.db.categories().await.map_err(Into::into)
     }
 
-    async fn food(&self, category_id: ID, order_by: FoodOrder) -> Result<Vec<Food>> {
+    async fn food_in_category(
+        &self,
+        category_id: ID,
+        sort_by: SortFoodBy,
+        sort_order: SortOrder,
+    ) -> Result<Vec<IndexedFood>> {
         self.db
-            .food(category_id, order_by)
+            .food_in_category(category_id, sort_by, sort_order)
             .await
             .map_err(Into::into)
     }

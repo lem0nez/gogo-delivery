@@ -10,7 +10,7 @@ use tokio_postgres::{NoTls, Row};
 
 use crate::{
     sha256,
-    types::{Address, Category, Food, FoodOrder, Notification, User, ID},
+    types::{Address, Category, IndexedFood, Notification, SortFoodBy, SortOrder, User, ID},
 };
 
 #[derive(Clone, Copy, Deserialize)]
@@ -57,28 +57,28 @@ impl Client {
             .get(0))
     }
 
-    pub async fn user(&self, username: &str) -> PostgresResult<User> {
+    pub async fn user_by_name(&self, username: &str) -> PostgresResult<User> {
         self.client
             .query_one(include_str!("sql/select_user.sql"), &[&username])
             .await
             .map(Into::into)
     }
 
-    pub async fn notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
+    pub async fn user_notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
         self.client
             .query(
                 include_str!("sql/select_notifications.sql"),
-                &[&self.user_id(username).await?],
+                &[&self.user_id_by_name(username).await?],
             )
             .await
             .map(from_rows)
     }
 
-    pub async fn addresses(&self, username: &str) -> PostgresResult<Vec<Address>> {
+    pub async fn user_addresses(&self, username: &str) -> PostgresResult<Vec<Address>> {
         self.client
             .query(
                 include_str!("sql/select_addresses.sql"),
-                &[&self.user_id(username).await?],
+                &[&self.user_id_by_name(username).await?],
             )
             .await
             .map(from_rows)
@@ -91,13 +91,24 @@ impl Client {
             .map(from_rows)
     }
 
-    pub async fn food(&self, category_id: ID, order_by: FoodOrder) -> PostgresResult<Vec<Food>> {
+    pub async fn food_in_category(
+        &self,
+        category_id: ID,
+        sort_by: SortFoodBy,
+        sort_order: SortOrder,
+    ) -> PostgresResult<Vec<IndexedFood>> {
         let mut food = self
             .client
-            .query(include_str!("sql/select_food.sql"), &[&category_id])
+            .query(
+                include_str!("sql/select_food_in_category.sql"),
+                &[&category_id],
+            )
             .await
             .map(from_rows)?;
-        food.sort_by(|lhs, rhs| order_by.cmp(lhs, rhs));
+        food.sort_by(|lhs, rhs| sort_by.cmp(lhs, rhs));
+        if let SortOrder::Descending = sort_order {
+            food.reverse();
+        }
         Ok(food)
     }
 
@@ -114,8 +125,8 @@ impl Client {
             .map(|row| row.get(0))
     }
 
-    async fn user_id(&self, username: &str) -> PostgresResult<ID> {
-        self.user(username).await.map(|user| user.id)
+    async fn user_id_by_name(&self, username: &str) -> PostgresResult<ID> {
+        self.user_by_name(username).await.map(|user| user.id)
     }
 }
 

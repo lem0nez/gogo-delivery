@@ -12,6 +12,12 @@ use tokio_postgres::Row;
 
 pub type ID = i32;
 
+#[derive(Clone, Copy, PartialEq, Eq, Enum)]
+pub enum SortOrder {
+    Ascending,
+    Descending,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromSql, ToSql, Enum)]
 pub enum UserRole {
     Customer,
@@ -30,6 +36,7 @@ pub struct User {
     pub password: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
+    #[graphql(skip_output)]
     pub birth_date: NaiveDate,
     pub role: UserRole,
 }
@@ -44,6 +51,23 @@ impl From<Row> for User {
             last_name: row.get("last_name"),
             birth_date: row.get("birth_date"),
             role: row.get("role"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Enum)]
+pub enum SortUsersBy {
+    Username,
+    FirstName,
+    LastName,
+}
+
+impl SortUsersBy {
+    pub fn cmp(&self, lhs: &User, rhs: &User) -> Ordering {
+        match self {
+            Self::Username => lhs.username.cmp(&rhs.username),
+            Self::FirstName => lhs.first_name.cmp(&rhs.first_name),
+            Self::LastName => lhs.last_name.cmp(&rhs.last_name),
         }
     }
 }
@@ -116,22 +140,24 @@ impl From<Row> for Category {
 
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "FoodInput")]
-pub struct Food {
+pub struct IndexedFood {
     #[graphql(skip_input)]
     pub id: ID,
     pub title: String,
     pub description: Option<String>,
+    pub category_id: ID,
     pub count: i32,
     pub is_alcohol: bool,
     pub price: Decimal,
 }
 
-impl From<Row> for Food {
+impl From<Row> for IndexedFood {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
             title: row.get("title"),
             description: row.get("description"),
+            category_id: row.get("category_id"),
             count: row.get("count"),
             is_alcohol: row.get("is_alcohol"),
             price: row.get("price"),
@@ -140,14 +166,14 @@ impl From<Row> for Food {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Enum)]
-pub enum FoodOrder {
+pub enum SortFoodBy {
     Title,
     Count,
     Price,
 }
 
-impl FoodOrder {
-    pub fn cmp(&self, lhs: &Food, rhs: &Food) -> Ordering {
+impl SortFoodBy {
+    pub fn cmp(&self, lhs: &IndexedFood, rhs: &IndexedFood) -> Ordering {
         match self {
             Self::Title => lhs.title.cmp(&rhs.title),
             Self::Count => lhs.count.cmp(&rhs.count),
@@ -156,9 +182,15 @@ impl FoodOrder {
     }
 }
 
+#[derive(SimpleObject)]
+pub struct Food {
+    pub category: Category,
+    pub food_data: IndexedFood,
+}
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "CartInput")]
-pub struct Cart {
+pub struct IndexedCart {
     #[graphql(skip_input)]
     pub id: ID,
     pub food_id: ID,
@@ -167,7 +199,7 @@ pub struct Cart {
     pub add_time: NaiveDateTime,
 }
 
-impl From<Row> for Cart {
+impl From<Row> for IndexedCart {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -178,9 +210,30 @@ impl From<Row> for Cart {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Enum)]
+pub enum SortCartBy {
+    Count,
+    AddTime,
+}
+
+impl SortCartBy {
+    pub fn cmp(&self, lhs: &IndexedCart, rhs: &IndexedCart) -> Ordering {
+        match self {
+            Self::Count => lhs.count.cmp(&rhs.count),
+            Self::AddTime => lhs.add_time.cmp(&rhs.add_time),
+        }
+    }
+}
+
+#[derive(SimpleObject)]
+pub struct Cart {
+    pub food: Food,
+    pub cart_data: IndexedCart,
+}
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "FavoriteInput")]
-pub struct Favorite {
+pub struct IndexedFavorite {
     #[graphql(skip_input)]
     pub id: ID,
     pub food_id: ID,
@@ -188,7 +241,7 @@ pub struct Favorite {
     pub add_time: NaiveDateTime,
 }
 
-impl From<Row> for Favorite {
+impl From<Row> for IndexedFavorite {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -198,9 +251,15 @@ impl From<Row> for Favorite {
     }
 }
 
+#[derive(SimpleObject)]
+pub struct Favorite {
+    pub food: Food,
+    pub favorite_data: IndexedFavorite,
+}
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "OrderInput")]
-pub struct Order {
+pub struct IndexedOrder {
     #[graphql(skip_input)]
     pub id: ID,
     pub customer_id: ID,
@@ -213,7 +272,7 @@ pub struct Order {
     pub completed_time: Option<NaiveDateTime>,
 }
 
-impl From<Row> for Order {
+impl From<Row> for IndexedOrder {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -226,16 +285,25 @@ impl From<Row> for Order {
     }
 }
 
+#[derive(SimpleObject)]
+pub struct Order {
+    pub customer: User,
+    pub address: Address,
+    pub rider: User,
+    pub food: Vec<OrderItem>,
+    pub order_data: IndexedOrder,
+}
+
 #[derive(SimpleObject, InputObject)]
-#[graphql(input_name = "OrderFoodInput")]
-pub struct OrderFood {
+#[graphql(input_name = "OrderItemInput")]
+pub struct IndexedOrderItem {
     #[graphql(skip_input)]
     pub id: ID,
     pub food_id: ID,
     pub count: i32,
 }
 
-impl From<Row> for OrderFood {
+impl From<Row> for IndexedOrderItem {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -245,9 +313,15 @@ impl From<Row> for OrderFood {
     }
 }
 
+#[derive(SimpleObject)]
+pub struct OrderItem {
+    pub food: Food,
+    pub order_item_data: IndexedOrderItem,
+}
+
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "FeedbackInput")]
-pub struct Feedback {
+pub struct IndexedFeedback {
     #[graphql(skip_input)]
     pub id: ID,
     pub order_id: ID,
@@ -256,7 +330,7 @@ pub struct Feedback {
     pub comment: Option<String>,
 }
 
-impl From<Row> for Feedback {
+impl From<Row> for IndexedFeedback {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -265,4 +339,10 @@ impl From<Row> for Feedback {
             comment: row.get("comment"),
         }
     }
+}
+
+#[derive(SimpleObject)]
+pub struct Feedback {
+    pub order: Order,
+    pub feedback_data: IndexedFeedback,
 }
