@@ -10,7 +10,7 @@ use tokio_postgres::{NoTls, Row};
 
 use crate::{
     sha256,
-    types::{Category, Food, FoodOrder, Notification, User, ID},
+    types::{Address, Category, Food, FoodOrder, Notification, User, ID},
 };
 
 #[derive(Clone, Copy, Deserialize)]
@@ -68,6 +68,16 @@ impl Client {
         self.client
             .query(
                 include_str!("sql/select_notifications.sql"),
+                &[&self.user_id(username).await?],
+            )
+            .await
+            .map(from_rows)
+    }
+
+    pub async fn addresses(&self, username: &str) -> PostgresResult<Vec<Address>> {
+        self.client
+            .query(
+                include_str!("sql/select_addresses.sql"),
                 &[&self.user_id(username).await?],
             )
             .await
