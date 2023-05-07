@@ -20,6 +20,7 @@ use serde::Deserialize;
 use crate::{
     auth_validator,
     db::{self, PreviewOf},
+    types::ID,
     AppSchema,
 };
 
@@ -49,16 +50,13 @@ async fn playground(auth: BasicAuth) -> HttpResponse {
 #[derive(Deserialize)]
 struct PreviewQuery {
     of: PreviewOf,
-    id: i32,
+    id: ID,
 }
 
 #[get("/preview")]
 async fn preview(query: Query<PreviewQuery>, db: Data<Arc<db::Client>>) -> HttpResponse {
-    match db.get_preview(query.of, query.id).await {
-        Ok(bytes) => match bytes {
-            Some(bytes) => HttpResponse::Ok().content_type("image/jpeg").body(bytes),
-            None => HttpResponse::BadRequest().body("no such id"),
-        },
-        Err(e) => HttpResponse::InternalServerError().body(e.to_string()),
-    }
+    db.preview(query.of, query.id)
+        .await
+        .map(|bytes| HttpResponse::Ok().content_type("image/jpeg").body(bytes))
+        .unwrap_or_else(|err| HttpResponse::BadRequest().body(err.to_string()))
 }

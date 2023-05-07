@@ -7,6 +7,8 @@ use chrono::{NaiveDate, NaiveDateTime};
 use postgres_types::{FromSql, ToSql};
 use tokio_postgres::Row;
 
+pub type ID = i32;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromSql, ToSql, Enum)]
 pub enum UserRole {
     Customer,
@@ -18,7 +20,7 @@ pub enum UserRole {
 #[graphql(input_name = "UserInput")]
 pub struct User {
     #[graphql(skip_input)]
-    pub id: i32,
+    pub id: ID,
     pub username: String,
     /// SHA256-encrypted string.
     #[graphql(skip_output)]
@@ -47,7 +49,7 @@ impl From<Row> for User {
 #[graphql(input_name = "NotificationInput")]
 pub struct Notification {
     #[graphql(skip_input)]
-    pub id: i32,
+    pub id: ID,
     #[graphql(skip_input)]
     pub sent_time: NaiveDateTime,
     pub title: String,
@@ -69,7 +71,7 @@ impl From<Row> for Notification {
 #[graphql(input_name = "AddressInput")]
 pub struct Address {
     #[graphql(skip_input)]
-    pub id: i32,
+    pub id: ID,
     pub locality: String,
     pub street: String,
     pub house: i32,
@@ -94,7 +96,7 @@ impl From<Row> for Address {
 #[graphql(input_name = "CategoryInput")]
 pub struct Category {
     #[graphql(skip_input)]
-    pub id: i32,
+    pub id: ID,
     pub title: String,
     pub description: Option<String>,
 }
@@ -113,7 +115,7 @@ impl From<Row> for Category {
 #[graphql(input_name = "FoodInput")]
 pub struct Food {
     #[graphql(skip_input)]
-    pub id: i32,
+    pub id: ID,
     pub title: String,
     pub description: Option<String>,
     pub count: i32,
@@ -138,8 +140,8 @@ impl From<Row> for Food {
 #[graphql(input_name = "CartInput")]
 pub struct Cart {
     #[graphql(skip_input)]
-    pub id: i32,
-    pub food_id: i32,
+    pub id: ID,
+    pub food_id: ID,
     pub count: i32,
     #[graphql(skip_input)]
     pub add_time: NaiveDateTime,
@@ -160,8 +162,8 @@ impl From<Row> for Cart {
 #[graphql(input_name = "FavoriteInput")]
 pub struct Favorite {
     #[graphql(skip_input)]
-    pub id: i32,
-    pub food_id: i32,
+    pub id: ID,
+    pub food_id: ID,
     #[graphql(skip_input)]
     pub add_time: NaiveDateTime,
 }
@@ -180,13 +182,13 @@ impl From<Row> for Favorite {
 #[graphql(input_name = "OrderInput")]
 pub struct Order {
     #[graphql(skip_input)]
-    pub id: i32,
-    pub customer_id: i32,
-    pub address_id: i32,
+    pub id: ID,
+    pub customer_id: ID,
+    pub address_id: ID,
     #[graphql(skip_input)]
     pub create_time: NaiveDateTime,
     #[graphql(skip_input)]
-    pub rider_id: Option<i32>,
+    pub rider_id: Option<ID>,
     #[graphql(skip_input)]
     pub completed_time: Option<NaiveDateTime>,
 }
@@ -208,8 +210,8 @@ impl From<Row> for Order {
 #[graphql(input_name = "OrderFoodInput")]
 pub struct OrderFood {
     #[graphql(skip_input)]
-    pub id: i32,
-    pub food_id: i32,
+    pub id: ID,
+    pub food_id: ID,
     pub count: i32,
 }
 
@@ -227,8 +229,8 @@ impl From<Row> for OrderFood {
 #[graphql(input_name = "FeedbackInput")]
 pub struct Feedback {
     #[graphql(skip_input)]
-    pub id: i32,
-    pub order_id: i32,
+    pub id: ID,
+    pub order_id: ID,
     /// From 0 to 5.
     pub rating: Option<i8>,
     pub comment: Option<String>,
