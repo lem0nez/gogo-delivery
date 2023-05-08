@@ -285,6 +285,23 @@ impl From<Row> for IndexedOrder {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Enum)]
+pub enum OrdersFilter {
+    All,
+    InProgress,
+    Completed,
+}
+
+impl OrdersFilter {
+    pub fn fits(&self, order: &IndexedOrder) -> bool {
+        match self {
+            Self::All => true,
+            Self::InProgress => order.rider_id.is_some() && order.completed_time.is_none(),
+            Self::Completed => order.completed_time.is_some(),
+        }
+    }
+}
+
 #[derive(SimpleObject)]
 pub struct Order {
     pub customer: User,

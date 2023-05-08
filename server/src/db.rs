@@ -60,6 +60,13 @@ impl Client {
             .map(Into::into)
     }
 
+    pub async fn users(&self) -> PostgresResult<Vec<User>> {
+        self.client
+            .query(include_str!("sql/select_users.sql"), &[])
+            .await
+            .map(from_rows)
+    }
+
     pub async fn user_notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
         self.client
             .query(
@@ -203,15 +210,20 @@ impl Client {
         Ok(cart)
     }
 
-    pub async fn orders(&self) -> anyhow::Result<Vec<Order>> {
-        self.query_orders(include_str!("sql/select_orders.sql"), &[])
+    pub async fn orders(&self, filter: OrdersFilter) -> anyhow::Result<Vec<Order>> {
+        self.query_orders(include_str!("sql/select_orders.sql"), &[], filter)
             .await
     }
 
-    pub async fn user_orders(&self, username: &str) -> anyhow::Result<Vec<Order>> {
+    pub async fn user_orders(
+        &self,
+        username: &str,
+        filter: OrdersFilter,
+    ) -> anyhow::Result<Vec<Order>> {
         self.query_orders(
             include_str!("sql/select_user_orders.sql"),
             &[&self.user_id_by_name(username).await?],
+            filter,
         )
         .await
     }
@@ -270,9 +282,16 @@ impl Client {
         &self,
         statement: &str,
         params: &[&(dyn ToSql + Sync)],
+        filter: OrdersFilter,
     ) -> anyhow::Result<Vec<Order>> {
-        let indexed_orders: Vec<IndexedOrder> =
-            self.client.query(statement, params).await.map(from_rows)?;
+        let indexed_orders: Vec<IndexedOrder> = self
+            .client
+            .query(statement, params)
+            .await
+            .map(from_rows)?
+            .into_iter()
+            .filter(|order| filter.fits(order))
+            .collect();
 
         let mut orders = Vec::with_capacity(indexed_orders.capacity());
         for indexed_order in indexed_orders {

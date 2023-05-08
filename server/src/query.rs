@@ -24,6 +24,13 @@ impl QueryRoot {
         self._current_user_impl(ctx).await
     }
 
+    async fn users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
+        if self._current_user_impl(ctx).await?.role != UserRole::Manager {
+            return Err("access denied".into());
+        }
+        self.db.users().await.map_err(Into::into)
+    }
+
     async fn user_notifications(&self, ctx: &Context<'_>) -> Result<Vec<Notification>> {
         self.db
             .user_notifications(auth_from_ctx(ctx).user_id())
@@ -87,16 +94,16 @@ impl QueryRoot {
             .map_err(Into::into)
     }
 
-    async fn orders(&self, ctx: &Context<'_>) -> Result<Vec<Order>> {
+    async fn orders(&self, ctx: &Context<'_>, filter: OrdersFilter) -> Result<Vec<Order>> {
         if let UserRole::Customer = self._current_user_impl(ctx).await?.role {
             return Err("access denied".into());
         }
-        self.db.orders().await.map_err(Into::into)
+        self.db.orders(filter).await.map_err(Into::into)
     }
 
-    async fn user_orders(&self, ctx: &Context<'_>) -> Result<Vec<Order>> {
+    async fn user_orders(&self, ctx: &Context<'_>, filter: OrdersFilter) -> Result<Vec<Order>> {
         self.db
-            .user_orders(auth_from_ctx(ctx).user_id())
+            .user_orders(auth_from_ctx(ctx).user_id(), filter)
             .await
             .map_err(Into::into)
     }
