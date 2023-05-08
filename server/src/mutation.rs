@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use async_graphql::Object;
+use async_graphql::{Context, Object, Result};
 
-use crate::db;
+use crate::{auth_from_ctx, db, types::*};
 
 pub struct MutationRoot {
     db: Arc<db::Client>,
@@ -20,7 +20,15 @@ impl MutationRoot {
 
 #[Object]
 impl MutationRoot {
-    async fn _remove_me(&self) -> bool {
-        todo!()
+    /// Returns ID of the new favorite item.
+    async fn add_user_favorite(
+        &self,
+        ctx: &Context<'_>,
+        favorite: IndexedFavorite,
+    ) -> Result<ID> {
+        self.db
+            .add_user_favorite(auth_from_ctx(ctx).user_id(), favorite)
+            .await
+            .map_err(Into::into)
     }
 }

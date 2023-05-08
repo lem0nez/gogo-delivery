@@ -164,6 +164,20 @@ impl Client {
         Ok(favorites)
     }
 
+    pub async fn add_user_favorite(
+        &self,
+        username: &str,
+        favorite: IndexedFavorite,
+    ) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert_user_favorite.sql"),
+                &[&self.user_id_by_name(username).await?, &favorite.food_id],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
     pub async fn is_in_user_cart(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
         self.is_true(
             include_str!("sql/is_in_user_cart.sql"),
