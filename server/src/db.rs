@@ -6,8 +6,9 @@ use std::{collections::HashMap, env};
 
 use anyhow::anyhow;
 use log::error;
+use postgres_types::ToSql;
 use serde::Deserialize;
-use tokio_postgres::{NoTls, Row};
+use tokio_postgres::{NoTls, Row, ToStatement};
 
 use crate::{sha256, types::*};
 
@@ -57,7 +58,7 @@ impl Client {
 
     pub async fn user_by_name(&self, username: &str) -> PostgresResult<User> {
         self.client
-            .query_one(include_str!("sql/select_user.sql"), &[&username])
+            .query_one(include_str!("sql/select_user_by_name.sql"), &[&username])
             .await
             .map(Into::into)
     }
@@ -124,13 +125,16 @@ impl Client {
     }
 
     pub async fn user_favorites(&self, username: &str) -> anyhow::Result<Vec<Favorite>> {
-        let mut food = self.food().await?;
+        let user_id = self.user_id_by_name(username).await?;
+        let mut food = self
+            .food(
+                include_str!("sql/select_user_favorite_food.sql"),
+                &[&user_id],
+            )
+            .await?;
         let indexed_favorites: Vec<IndexedFavorite> = self
             .client
-            .query(
-                include_str!("sql/select_user_favorites.sql"),
-                &[&self.user_id_by_name(username).await?],
-            )
+            .query(include_str!("sql/select_user_favorites.sql"), &[&user_id])
             .await
             .map(from_rows)?;
 
@@ -138,6 +142,8 @@ impl Client {
         for indexed_favorite in indexed_favorites {
             favorites.push(Favorite {
                 food: food
+                    // We can move a food item because it's
+                    // unique per user (constraint 'food_per_user').
                     .remove(&indexed_favorite.food_id)
                     .ok_or(anyhow!("database was changed during data merging"))?,
                 indexed_favorite,
@@ -152,13 +158,16 @@ impl Client {
         sort_by: SortCartBy,
         sort_order: SortOrder,
     ) -> anyhow::Result<Vec<CartItem>> {
-        let mut food = self.food().await?;
+        let user_id = self.user_id_by_name(username).await?;
+        let mut food = self
+            .food(
+                include_str!("sql/select_food_in_user_cart.sql"),
+                &[&user_id],
+            )
+            .await?;
         let mut indexed_cart: Vec<IndexedCartItem> = self
             .client
-            .query(
-                include_str!("sql/select_user_cart.sql"),
-                &[&self.user_id_by_name(username).await?],
-            )
+            .query(include_str!("sql/select_user_cart.sql"), &[&user_id])
             .await
             .map(from_rows)?;
 
@@ -171,6 +180,8 @@ impl Client {
         for indexed_cart_item in indexed_cart {
             cart.push(CartItem {
                 food: food
+                    // We can move a food item because it's
+                    // unique per user (constraint 'food_per_customer').
                     .remove(&indexed_cart_item.food_id)
                     .ok_or(anyhow!("database was changed during data merging"))?,
                 indexed_cart_item,
@@ -179,22 +190,37 @@ impl Client {
         Ok(cart)
     }
 
+    async fn user_by_id(&self, id: ID) -> PostgresResult<User> {
+        self.client
+            .query_one(include_str!("sql/select_user_by_id.sql"), &[&id])
+            .await
+            .map(Into::into)
+    }
+
     async fn user_id_by_name(&self, username: &str) -> PostgresResult<ID> {
         self.user_by_name(username).await.map(|user| user.id)
     }
 
-    async fn food(&self) -> anyhow::Result<HashMap<ID, Food>> {
+    async fn address_by_id(&self, id: ID) -> PostgresResult<Address> {
+        self.client
+            .query_one(include_str!("sql/select_address_by_id.sql"), &[&id])
+            .await
+            .map(Into::into)
+    }
+
+    async fn food<T: ?Sized + ToStatement>(
+        &self,
+        statement: &T,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> anyhow::Result<HashMap<ID, Food>> {
         let categories: HashMap<_, _> = self
             .categories()
             .await?
             .into_iter()
             .map(|category| (category.id, category))
             .collect();
-        let indexed_food: Vec<IndexedFood> = self
-            .client
-            .query(include_str!("sql/select_food.sql"), &[])
-            .await
-            .map(from_rows)?;
+        let indexed_food: Vec<IndexedFood> =
+            self.client.query(statement, params).await.map(from_rows)?;
 
         let mut food = HashMap::with_capacity(indexed_food.capacity());
         // Using loop instead of closure because we must be able to propage an error.
