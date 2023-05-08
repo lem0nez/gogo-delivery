@@ -71,6 +71,13 @@ impl QueryRoot {
             .map_err(Into::into)
     }
 
+    async fn is_in_user_cart(&self, ctx: &Context<'_>, food_id: ID) -> Result<bool> {
+        self.db
+            .is_in_user_cart(auth_from_ctx(ctx).user_id(), food_id)
+            .await
+            .map_err(Into::into)
+    }
+
     async fn user_cart(
         &self,
         ctx: &Context<'_>,

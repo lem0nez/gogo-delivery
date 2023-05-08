@@ -8,7 +8,7 @@ use anyhow::anyhow;
 use log::error;
 use postgres_types::ToSql;
 use serde::Deserialize;
-use tokio_postgres::{NoTls, Row, ToStatement};
+use tokio_postgres::{NoTls, Row};
 
 use crate::{sha256, types::*};
 
@@ -46,13 +46,11 @@ impl Client {
         username: &str,
         password: &str,
     ) -> PostgresResult<bool> {
-        self.client
-            .query_one(
-                include_str!("sql/is_credentials_valid.sql"),
-                &[&username, &sha256(password)],
-            )
-            .await
-            .map(|row| row.get(0))
+        self.is_true(
+            include_str!("sql/is_credentials_valid.sql"),
+            &[&username, &sha256(password)],
+        )
+        .await
     }
 
     pub async fn user_by_name(&self, username: &str) -> PostgresResult<User> {
@@ -124,13 +122,11 @@ impl Client {
     }
 
     pub async fn is_user_favorite(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
-        self.client
-            .query_one(
-                include_str!("sql/is_user_favorite.sql"),
-                &[&self.user_id_by_name(username).await?, &food_id],
-            )
-            .await
-            .map(|row| row.get(0))
+        self.is_true(
+            include_str!("sql/is_user_favorite.sql"),
+            &[&self.user_id_by_name(username).await?, &food_id],
+        )
+        .await
     }
 
     pub async fn user_favorites(&self, username: &str) -> anyhow::Result<Vec<Favorite>> {
@@ -159,6 +155,14 @@ impl Client {
             })
         }
         Ok(favorites)
+    }
+
+    pub async fn is_in_user_cart(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
+        self.is_true(
+            include_str!("sql/is_in_user_cart.sql"),
+            &[&self.user_id_by_name(username).await?, &food_id],
+        )
+        .await
     }
 
     pub async fn user_cart(
@@ -242,9 +246,9 @@ impl Client {
             .map(Into::into)
     }
 
-    async fn food<T: ?Sized + ToStatement>(
+    async fn food(
         &self,
-        statement: &T,
+        statement: &str,
         params: &[&(dyn ToSql + Sync)],
     ) -> anyhow::Result<HashMap<ID, Food>> {
         let categories: HashMap<_, _> = self
@@ -303,6 +307,17 @@ impl Client {
             .query_opt(include_str!("sql/select_order_feedback.sql"), &[&order_id])
             .await
             .map(|row| row.map(Into::into))
+    }
+
+    async fn is_true(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> PostgresResult<bool> {
+        self.client
+            .query_one(statement, params)
+            .await
+            .map(|row| row.get(0))
     }
 }
 
