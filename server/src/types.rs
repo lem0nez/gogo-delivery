@@ -25,7 +25,7 @@ pub enum UserRole {
     Rider,
 }
 
-#[derive(SimpleObject, InputObject)]
+#[derive(Clone, SimpleObject, InputObject)]
 #[graphql(input_name = "UserInput")]
 pub struct User {
     #[graphql(skip_input)]
@@ -289,8 +289,9 @@ impl From<Row> for IndexedOrder {
 pub struct Order {
     pub customer: User,
     pub address: Address,
-    pub rider: User,
-    pub food: Vec<OrderItem>,
+    pub rider: Option<User>,
+    pub items: Vec<OrderItem>,
+    pub feedback: Option<Feedback>,
     pub indexed_order: IndexedOrder,
 }
 
@@ -321,16 +322,17 @@ pub struct OrderItem {
 
 #[derive(SimpleObject, InputObject)]
 #[graphql(input_name = "FeedbackInput")]
-pub struct IndexedFeedback {
+pub struct Feedback {
     #[graphql(skip_input)]
     pub id: ID,
+    #[graphql(skip_output)]
     pub order_id: ID,
     /// From 0 to 5.
     pub rating: Option<i8>,
     pub comment: Option<String>,
 }
 
-impl From<Row> for IndexedFeedback {
+impl From<Row> for Feedback {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -339,10 +341,4 @@ impl From<Row> for IndexedFeedback {
             comment: row.get("comment"),
         }
     }
-}
-
-#[derive(SimpleObject)]
-pub struct Feedback {
-    pub order: Order,
-    pub indexed_feedback: IndexedFeedback,
 }

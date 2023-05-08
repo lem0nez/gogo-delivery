@@ -75,4 +75,11 @@ impl QueryRoot {
             .await
             .map_err(Into::into)
     }
+
+    async fn user_orders(&self, ctx: &Context<'_>) -> Result<Vec<Order>> {
+        self.db
+            .user_orders(auth_from_ctx(ctx).user_id())
+            .await
+            .map_err(Into::into)
+    }
 }

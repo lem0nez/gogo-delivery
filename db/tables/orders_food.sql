@@ -15,7 +15,8 @@ CREATE TABLE public.orders_food
         ON UPDATE NO ACTION
         ON DELETE CASCADE
         NOT VALID,
-    CHECK (count > 0) NOT VALID
+    CHECK (count > 0) NOT VALID,
+    CONSTRAINT food_per_order UNIQUE (order_id, food_id)
 );
 
 ALTER TABLE IF EXISTS public.orders_food

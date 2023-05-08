@@ -10,7 +10,8 @@ CREATE TABLE public.feedbacks
         ON UPDATE NO ACTION
         ON DELETE CASCADE
         NOT VALID,
-    CONSTRAINT rating CHECK (rating >= 0 AND rating <= 5) NOT VALID
+    CONSTRAINT rating CHECK (rating >= 0 AND rating <= 5) NOT VALID,
+    CONSTRAINT unique_order_id UNIQUE (order_id)
 );
 
 ALTER TABLE IF EXISTS public.feedbacks

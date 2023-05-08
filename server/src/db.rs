@@ -190,6 +190,31 @@ impl Client {
         Ok(cart)
     }
 
+    pub async fn user_orders(&self, username: &str) -> anyhow::Result<Vec<Order>> {
+        let customer = self.user_by_name(username).await?;
+        let indexed_orders: Vec<IndexedOrder> = self
+            .client
+            .query(include_str!("sql/select_user_orders.sql"), &[&customer.id])
+            .await
+            .map(from_rows)?;
+
+        let mut orders = Vec::with_capacity(indexed_orders.capacity());
+        for indexed_order in indexed_orders {
+            orders.push(Order {
+                customer: customer.clone(),
+                address: self.address_by_id(indexed_order.address_id).await?,
+                rider: match indexed_order.rider_id {
+                    Some(id) => Some(self.user_by_id(id).await?),
+                    None => None,
+                },
+                items: self.order_items(indexed_order.id).await?,
+                feedback: self.order_feedback(indexed_order.id).await?,
+                indexed_order,
+            })
+        }
+        Ok(orders)
+    }
+
     async fn user_by_id(&self, id: ID) -> PostgresResult<User> {
         self.client
             .query_one(include_str!("sql/select_user_by_id.sql"), &[&id])
@@ -238,6 +263,37 @@ impl Client {
             );
         }
         Ok(food)
+    }
+
+    async fn order_items(&self, order_id: ID) -> anyhow::Result<Vec<OrderItem>> {
+        let mut food = self
+            .food(include_str!("sql/select_order_food.sql"), &[&order_id])
+            .await?;
+        let indexed_items: Vec<IndexedOrderItem> = self
+            .client
+            .query(include_str!("sql/select_order_items.sql"), &[&order_id])
+            .await
+            .map(from_rows)?;
+
+        let mut items = Vec::with_capacity(indexed_items.capacity());
+        for indexed_item in indexed_items {
+            items.push(OrderItem {
+                food: food
+                    // We can move a food item because it's
+                    // unique per order (constraint 'food_per_order').
+                    .remove(&indexed_item.food_id)
+                    .ok_or(anyhow!("database was changed during data merging"))?,
+                indexed_item,
+            })
+        }
+        Ok(items)
+    }
+
+    async fn order_feedback(&self, order_id: ID) -> PostgresResult<Option<Feedback>> {
+        self.client
+            .query_opt(include_str!("sql/select_order_feedback.sql"), &[&order_id])
+            .await
+            .map(|row| row.map(Into::into))
     }
 }
 
