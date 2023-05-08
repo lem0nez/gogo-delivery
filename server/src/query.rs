@@ -6,12 +6,7 @@ use std::sync::Arc;
 
 use async_graphql::{Context, Object, Result};
 
-use crate::{
-    auth_from_ctx, db,
-    types::{
-        Address, Category, Favorite, IndexedFood, Notification, SortFoodBy, SortOrder, User, ID,
-    },
-};
+use crate::{auth_from_ctx, db, types::*};
 
 pub struct QueryRoot {
     db: Arc<db::Client>,
@@ -65,6 +60,18 @@ impl QueryRoot {
     async fn user_favorites(&self, ctx: &Context<'_>) -> Result<Vec<Favorite>> {
         self.db
             .user_favorites(auth_from_ctx(ctx).user_id())
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn user_cart(
+        &self,
+        ctx: &Context<'_>,
+        sort_by: SortCartBy,
+        sort_order: SortOrder,
+    ) -> Result<Vec<CartItem>> {
+        self.db
+            .user_cart(auth_from_ctx(ctx).user_id(), sort_by, sort_order)
             .await
             .map_err(Into::into)
     }

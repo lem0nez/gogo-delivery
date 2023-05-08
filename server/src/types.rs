@@ -189,8 +189,8 @@ pub struct Food {
 }
 
 #[derive(SimpleObject, InputObject)]
-#[graphql(input_name = "CartInput")]
-pub struct IndexedCart {
+#[graphql(input_name = "CartItemInput")]
+pub struct IndexedCartItem {
     #[graphql(skip_input)]
     pub id: ID,
     pub food_id: ID,
@@ -199,7 +199,7 @@ pub struct IndexedCart {
     pub add_time: NaiveDateTime,
 }
 
-impl From<Row> for IndexedCart {
+impl From<Row> for IndexedCartItem {
     fn from(row: Row) -> Self {
         Self {
             id: row.get("id"),
@@ -217,7 +217,7 @@ pub enum SortCartBy {
 }
 
 impl SortCartBy {
-    pub fn cmp(&self, lhs: &IndexedCart, rhs: &IndexedCart) -> Ordering {
+    pub fn cmp(&self, lhs: &IndexedCartItem, rhs: &IndexedCartItem) -> Ordering {
         match self {
             Self::Count => lhs.count.cmp(&rhs.count),
             Self::AddTime => lhs.add_time.cmp(&rhs.add_time),
@@ -226,9 +226,9 @@ impl SortCartBy {
 }
 
 #[derive(SimpleObject)]
-pub struct Cart {
+pub struct CartItem {
     pub food: Food,
-    pub indexed_cart: IndexedCart,
+    pub indexed_cart_item: IndexedCartItem,
 }
 
 #[derive(SimpleObject, InputObject)]

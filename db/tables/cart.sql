@@ -16,7 +16,8 @@ CREATE TABLE public.cart
         ON UPDATE NO ACTION
         ON DELETE CASCADE
         NOT VALID,
-    CONSTRAINT count CHECK (count > 0) NOT VALID
+    CONSTRAINT count CHECK (count > 0) NOT VALID,
+    CONSTRAINT food_per_customer UNIQUE (customer_id, food_id)
 );
 
 ALTER TABLE IF EXISTS public.cart

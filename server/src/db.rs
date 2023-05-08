@@ -9,13 +9,7 @@ use log::error;
 use serde::Deserialize;
 use tokio_postgres::{NoTls, Row};
 
-use crate::{
-    sha256,
-    types::{
-        Address, Category, Favorite, Food, IndexedFavorite, IndexedFood, Notification, SortFoodBy,
-        SortOrder, User, ID,
-    },
-};
+use crate::{sha256, types::*};
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -130,12 +124,7 @@ impl Client {
     }
 
     pub async fn user_favorites(&self, username: &str) -> anyhow::Result<Vec<Favorite>> {
-        let mut food: HashMap<_, _> = self
-            .food()
-            .await?
-            .into_iter()
-            .map(|food| (food.indexed_food.id, food))
-            .collect();
+        let mut food = self.food().await?;
         let indexed_favorites: Vec<IndexedFavorite> = self
             .client
             .query(
@@ -144,8 +133,8 @@ impl Client {
             )
             .await
             .map(from_rows)?;
-        let mut favorites = Vec::with_capacity(indexed_favorites.capacity());
 
+        let mut favorites = Vec::with_capacity(indexed_favorites.capacity());
         for indexed_favorite in indexed_favorites {
             favorites.push(Favorite {
                 food: food
@@ -157,11 +146,44 @@ impl Client {
         Ok(favorites)
     }
 
+    pub async fn user_cart(
+        &self,
+        username: &str,
+        sort_by: SortCartBy,
+        sort_order: SortOrder,
+    ) -> anyhow::Result<Vec<CartItem>> {
+        let mut food = self.food().await?;
+        let mut indexed_cart: Vec<IndexedCartItem> = self
+            .client
+            .query(
+                include_str!("sql/select_user_cart.sql"),
+                &[&self.user_id_by_name(username).await?],
+            )
+            .await
+            .map(from_rows)?;
+
+        indexed_cart.sort_by(|lhs, rhs| sort_by.cmp(lhs, rhs));
+        if let SortOrder::Descending = sort_order {
+            indexed_cart.reverse();
+        }
+
+        let mut cart = Vec::with_capacity(indexed_cart.capacity());
+        for indexed_cart_item in indexed_cart {
+            cart.push(CartItem {
+                food: food
+                    .remove(&indexed_cart_item.food_id)
+                    .ok_or(anyhow!("database was changed during data merging"))?,
+                indexed_cart_item,
+            })
+        }
+        Ok(cart)
+    }
+
     async fn user_id_by_name(&self, username: &str) -> PostgresResult<ID> {
         self.user_by_name(username).await.map(|user| user.id)
     }
 
-    async fn food(&self) -> anyhow::Result<Vec<Food>> {
+    async fn food(&self) -> anyhow::Result<HashMap<ID, Food>> {
         let categories: HashMap<_, _> = self
             .categories()
             .await?
@@ -174,16 +196,20 @@ impl Client {
             .await
             .map(from_rows)?;
 
-        let mut food = Vec::with_capacity(indexed_food.capacity());
+        let mut food = HashMap::with_capacity(indexed_food.capacity());
         // Using loop instead of closure because we must be able to propage an error.
         for indexed_food in indexed_food {
-            food.push(Food {
-                category: categories
-                    .get(&indexed_food.category_id)
-                    .ok_or(anyhow!("database was changed during data merging"))?
-                    .clone(),
-                indexed_food,
-            });
+            let category = categories
+                .get(&indexed_food.category_id)
+                .ok_or(anyhow!("database was changed during data merging"))?
+                .clone();
+            food.insert(
+                indexed_food.id,
+                Food {
+                    category,
+                    indexed_food,
+                },
+            );
         }
         Ok(food)
     }
