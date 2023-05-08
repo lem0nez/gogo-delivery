@@ -46,14 +46,13 @@ impl Client {
         username: &str,
         password: &str,
     ) -> PostgresResult<bool> {
-        Ok(self
-            .client
+        self.client
             .query_one(
                 include_str!("sql/is_credentials_valid.sql"),
                 &[&username, &sha256(password)],
             )
-            .await?
-            .get(0))
+            .await
+            .map(|row| row.get(0))
     }
 
     pub async fn user_by_name(&self, username: &str) -> PostgresResult<User> {
@@ -119,6 +118,16 @@ impl Client {
                     PreviewOf::Food => include_str!("sql/select_food_preview.sql"),
                 },
                 &[&id],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
+    pub async fn is_user_favorite(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
+        self.client
+            .query_one(
+                include_str!("sql/is_user_favorite.sql"),
+                &[&self.user_id_by_name(username).await?, &food_id],
             )
             .await
             .map(|row| row.get(0))

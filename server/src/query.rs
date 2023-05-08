@@ -57,6 +57,13 @@ impl QueryRoot {
             .map_err(Into::into)
     }
 
+    async fn is_user_favorite(&self, ctx: &Context<'_>, food_id: ID) -> Result<bool> {
+        self.db
+            .is_user_favorite(auth_from_ctx(ctx).user_id(), food_id)
+            .await
+            .map_err(Into::into)
+    }
+
     async fn user_favorites(&self, ctx: &Context<'_>) -> Result<Vec<Favorite>> {
         self.db
             .user_favorites(auth_from_ctx(ctx).user_id())
