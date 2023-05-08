@@ -21,10 +21,7 @@ impl QueryRoot {
 #[Object]
 impl QueryRoot {
     async fn current_user(&self, ctx: &Context<'_>) -> Result<User> {
-        self.db
-            .user_by_name(auth_from_ctx(ctx).user_id())
-            .await
-            .map_err(Into::into)
+        self._current_user_impl(ctx).await
     }
 
     async fn user_notifications(&self, ctx: &Context<'_>) -> Result<Vec<Notification>> {
@@ -90,9 +87,24 @@ impl QueryRoot {
             .map_err(Into::into)
     }
 
+    async fn orders(&self, ctx: &Context<'_>) -> Result<Vec<Order>> {
+        if let UserRole::Customer = self._current_user_impl(ctx).await?.role {
+            return Err("access denied".into());
+        }
+        self.db.orders().await.map_err(Into::into)
+    }
+
     async fn user_orders(&self, ctx: &Context<'_>) -> Result<Vec<Order>> {
         self.db
             .user_orders(auth_from_ctx(ctx).user_id())
+            .await
+            .map_err(Into::into)
+    }
+
+    #[graphql(skip)]
+    async fn _current_user_impl(&self, ctx: &Context<'_>) -> Result<User> {
+        self.db
+            .user_by_name(auth_from_ctx(ctx).user_id())
             .await
             .map_err(Into::into)
     }

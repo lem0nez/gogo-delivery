@@ -132,7 +132,7 @@ impl Client {
     pub async fn user_favorites(&self, username: &str) -> anyhow::Result<Vec<Favorite>> {
         let user_id = self.user_id_by_name(username).await?;
         let mut food = self
-            .food(
+            .query_food(
                 include_str!("sql/select_user_favorite_food.sql"),
                 &[&user_id],
             )
@@ -173,7 +173,7 @@ impl Client {
     ) -> anyhow::Result<Vec<CartItem>> {
         let user_id = self.user_id_by_name(username).await?;
         let mut food = self
-            .food(
+            .query_food(
                 include_str!("sql/select_food_in_user_cart.sql"),
                 &[&user_id],
             )
@@ -203,29 +203,17 @@ impl Client {
         Ok(cart)
     }
 
-    pub async fn user_orders(&self, username: &str) -> anyhow::Result<Vec<Order>> {
-        let customer = self.user_by_name(username).await?;
-        let indexed_orders: Vec<IndexedOrder> = self
-            .client
-            .query(include_str!("sql/select_user_orders.sql"), &[&customer.id])
+    pub async fn orders(&self) -> anyhow::Result<Vec<Order>> {
+        self.query_orders(include_str!("sql/select_orders.sql"), &[])
             .await
-            .map(from_rows)?;
+    }
 
-        let mut orders = Vec::with_capacity(indexed_orders.capacity());
-        for indexed_order in indexed_orders {
-            orders.push(Order {
-                customer: customer.clone(),
-                address: self.address_by_id(indexed_order.address_id).await?,
-                rider: match indexed_order.rider_id {
-                    Some(id) => Some(self.user_by_id(id).await?),
-                    None => None,
-                },
-                items: self.order_items(indexed_order.id).await?,
-                feedback: self.order_feedback(indexed_order.id).await?,
-                indexed_order,
-            })
-        }
-        Ok(orders)
+    pub async fn user_orders(&self, username: &str) -> anyhow::Result<Vec<Order>> {
+        self.query_orders(
+            include_str!("sql/select_user_orders.sql"),
+            &[&self.user_id_by_name(username).await?],
+        )
+        .await
     }
 
     async fn user_by_id(&self, id: ID) -> PostgresResult<User> {
@@ -246,7 +234,7 @@ impl Client {
             .map(Into::into)
     }
 
-    async fn food(
+    async fn query_food(
         &self,
         statement: &str,
         params: &[&(dyn ToSql + Sync)],
@@ -278,9 +266,34 @@ impl Client {
         Ok(food)
     }
 
+    async fn query_orders(
+        &self,
+        statement: &str,
+        params: &[&(dyn ToSql + Sync)],
+    ) -> anyhow::Result<Vec<Order>> {
+        let indexed_orders: Vec<IndexedOrder> =
+            self.client.query(statement, params).await.map(from_rows)?;
+
+        let mut orders = Vec::with_capacity(indexed_orders.capacity());
+        for indexed_order in indexed_orders {
+            orders.push(Order {
+                customer: self.user_by_id(indexed_order.customer_id).await?,
+                address: self.address_by_id(indexed_order.address_id).await?,
+                rider: match indexed_order.rider_id {
+                    Some(id) => Some(self.user_by_id(id).await?),
+                    None => None,
+                },
+                items: self.order_items(indexed_order.id).await?,
+                feedback: self.order_feedback(indexed_order.id).await?,
+                indexed_order,
+            })
+        }
+        Ok(orders)
+    }
+
     async fn order_items(&self, order_id: ID) -> anyhow::Result<Vec<OrderItem>> {
         let mut food = self
-            .food(include_str!("sql/select_order_food.sql"), &[&order_id])
+            .query_food(include_str!("sql/select_order_food.sql"), &[&order_id])
             .await?;
         let indexed_items: Vec<IndexedOrderItem> = self
             .client
