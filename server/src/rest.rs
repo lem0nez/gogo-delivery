@@ -72,14 +72,15 @@ async fn sign_up(
     auth: BasicAuth,
     db: Data<Arc<db::Client>>,
 ) -> HttpResponse {
-    user.username = auth.user_id().to_string();
+    let username = auth.user_id();
+    user.username = username.to_string();
     if let Some(password) = auth.password() {
         user.password = password.to_string();
     }
     db.add_user(user.into_inner())
         .await
         .map(|id| {
-            info!("New customer with ID {id} signed up");
+            info!("New customer {username} signed up");
             HttpResponse::Ok().body(id.to_string())
         })
         .unwrap_or_else(|err| HttpResponse::BadRequest().body(err.to_string()))

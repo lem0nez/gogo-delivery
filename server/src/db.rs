@@ -83,6 +83,16 @@ impl Client {
             .map(|row| row.get(0))
     }
 
+    pub async fn set_user_role(&self, username: &str, role: UserRole) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/update_user_role.sql"),
+                &[&self.user_id_by_name(username).await?, &role],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn user_notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
         self.client
             .query(
@@ -183,7 +193,7 @@ impl Client {
     pub async fn add_user_favorite(
         &self,
         username: &str,
-        favorite: IndexedFavorite,
+        favorite: &IndexedFavorite,
     ) -> PostgresResult<ID> {
         self.client
             .query_one(

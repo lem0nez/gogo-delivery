@@ -18,14 +18,23 @@ impl QueryRoot {
     }
 }
 
+impl QueryRoot {
+    async fn current_user_impl(&self, ctx: &Context<'_>) -> Result<User> {
+        self.db
+            .user_by_name(auth_from_ctx(ctx).user_id())
+            .await
+            .map_err(Into::into)
+    }
+}
+
 #[Object]
 impl QueryRoot {
     async fn current_user(&self, ctx: &Context<'_>) -> Result<User> {
-        self._current_user_impl(ctx).await
+        self.current_user_impl(ctx).await
     }
 
     async fn users(&self, ctx: &Context<'_>) -> Result<Vec<User>> {
-        if self._current_user_impl(ctx).await?.role != UserRole::Manager {
+        if self.current_user_impl(ctx).await?.role != UserRole::Manager {
             return Err("access denied".into());
         }
         self.db.users().await.map_err(Into::into)
@@ -95,7 +104,7 @@ impl QueryRoot {
     }
 
     async fn orders(&self, ctx: &Context<'_>, filter: OrdersFilter) -> Result<Vec<Order>> {
-        if let UserRole::Customer = self._current_user_impl(ctx).await?.role {
+        if let UserRole::Customer = self.current_user_impl(ctx).await?.role {
             return Err("access denied".into());
         }
         self.db.orders(filter).await.map_err(Into::into)
@@ -104,14 +113,6 @@ impl QueryRoot {
     async fn user_orders(&self, ctx: &Context<'_>, filter: OrdersFilter) -> Result<Vec<Order>> {
         self.db
             .user_orders(auth_from_ctx(ctx).user_id(), filter)
-            .await
-            .map_err(Into::into)
-    }
-
-    #[graphql(skip)]
-    async fn _current_user_impl(&self, ctx: &Context<'_>) -> Result<User> {
-        self.db
-            .user_by_name(auth_from_ctx(ctx).user_id())
             .await
             .map_err(Into::into)
     }
