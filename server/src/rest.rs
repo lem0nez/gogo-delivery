@@ -15,17 +15,22 @@ use actix_web_httpauth::{extractors::basic::BasicAuth, middleware::HttpAuthentic
 use async_graphql::http::GraphQLPlaygroundConfig;
 use async_graphql_actix_web::{GraphQLRequest, GraphQLResponse};
 use base64::Engine;
+use log::info;
 use serde::Deserialize;
 
 use crate::{
     auth_validator,
     db::{self, PreviewOf},
-    types::ID,
+    types::{User, ID},
     AppSchema,
 };
 
 pub fn configure_service(config: &mut ServiceConfig) {
-    config.service(request).service(playground).service(preview);
+    config
+        .service(request)
+        .service(playground)
+        .service(preview)
+        .service(sign_up);
 }
 
 #[post("/", wrap = "HttpAuthentication::basic(auth_validator)")]
@@ -53,10 +58,29 @@ struct PreviewQuery {
     id: ID,
 }
 
-#[get("/preview")]
+#[get("/preview", wrap = "HttpAuthentication::basic(auth_validator)")]
 async fn preview(query: Query<PreviewQuery>, db: Data<Arc<db::Client>>) -> HttpResponse {
     db.preview(query.of, query.id)
         .await
         .map(|bytes| HttpResponse::Ok().content_type("image/jpeg").body(bytes))
+        .unwrap_or_else(|err| HttpResponse::BadRequest().body(err.to_string()))
+}
+
+#[post("/sign_up")]
+async fn sign_up(
+    mut user: Query<User>,
+    auth: BasicAuth,
+    db: Data<Arc<db::Client>>,
+) -> HttpResponse {
+    user.username = auth.user_id().to_string();
+    if let Some(password) = auth.password() {
+        user.password = password.to_string();
+    }
+    db.add_user(user.into_inner())
+        .await
+        .map(|id| {
+            info!("New customer with ID {id} signed up");
+            HttpResponse::Ok().body(id.to_string())
+        })
         .unwrap_or_else(|err| HttpResponse::BadRequest().body(err.to_string()))
 }

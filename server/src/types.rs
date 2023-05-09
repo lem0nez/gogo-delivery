@@ -8,6 +8,7 @@ use async_graphql::{Enum, InputObject, SimpleObject};
 use chrono::{NaiveDate, NaiveDateTime};
 use postgres_types::{FromSql, ToSql};
 use rust_decimal::Decimal;
+use serde::Deserialize;
 use tokio_postgres::Row;
 
 pub type ID = i32;
@@ -25,19 +26,29 @@ pub enum UserRole {
     Rider,
 }
 
-#[derive(Clone, SimpleObject, InputObject)]
+impl Default for UserRole {
+    fn default() -> Self {
+        Self::Customer
+    }
+}
+
+#[derive(Clone, Deserialize, SimpleObject, InputObject)]
 #[graphql(input_name = "UserInput")]
 pub struct User {
+    #[serde(skip)]
     #[graphql(skip_input)]
     pub id: ID,
+    #[serde(skip)]
     pub username: String,
     /// SHA256-encrypted string.
+    #[serde(skip)]
     #[graphql(skip_output)]
     pub password: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     #[graphql(skip_output)]
     pub birth_date: NaiveDate,
+    #[serde(skip)]
     pub role: UserRole,
 }
 

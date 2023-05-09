@@ -14,7 +14,7 @@ anyhow = "1.0.71"
 async-graphql = { version = "5.0.7", features = ["chrono", "decimal"] }
 async-graphql-actix-web = "5.0.7"
 base64 = "0.21.0"
-chrono = "0.4.24"
+chrono = { version = "0.4.24", features = ["serde"] }
 env_logger = "0.10.0"
 log = "0.4.17"
 postgres-types = { version = "0.2.5", features = ["derive"] }

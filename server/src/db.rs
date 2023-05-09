@@ -67,6 +67,22 @@ impl Client {
             .map(from_rows)
     }
 
+    pub async fn add_user(&self, user: User) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert_user.sql"),
+                &[
+                    &user.username,
+                    &user.password,
+                    &user.first_name,
+                    &user.last_name,
+                    &user.birth_date,
+                ],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
     pub async fn user_notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
         self.client
             .query(
