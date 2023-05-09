@@ -61,6 +61,32 @@ impl MutationRoot {
             .map_err(Into::into)
     }
 
+    async fn add_user_address(&self, ctx: &Context<'_>, address: Address) -> Result<ID> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .add_user_address(username, address)
+            .await
+            .map(|id| {
+                info!("User \"{username}\" added new address with ID {id}");
+                id
+            })
+            .map_err(Into::into)
+    }
+
+    async fn delete_user_address(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .delete_user_address(username, id)
+            .await
+            .map(|result| {
+                if result {
+                    info!("User \"{username}\" deleted address with ID {id}");
+                }
+                result
+            })
+            .map_err(Into::into)
+    }
+
     async fn add_category(
         &self,
         ctx: &Context<'_>,

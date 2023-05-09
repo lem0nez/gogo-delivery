@@ -113,6 +113,33 @@ impl Client {
             .map(from_rows)
     }
 
+    pub async fn add_user_address(&self, username: &str, address: Address) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert/user_address.sql"),
+                &[
+                    &self.user_id_by_name(username).await?,
+                    &address.locality,
+                    &address.street,
+                    &address.house,
+                    &address.corps,
+                    &address.apartment,
+                ],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
+    pub async fn delete_user_address(&self, username: &str, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/delete/user_address.sql"),
+                &[&self.user_id_by_name(username).await?, &id],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn categories(&self) -> PostgresResult<Vec<Category>> {
         self.client
             .query(include_str!("sql/select/categories.sql"), &[])
