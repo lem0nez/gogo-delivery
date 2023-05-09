@@ -120,6 +120,20 @@ impl Client {
             .map(from_rows)
     }
 
+    pub async fn add_category(
+        &self,
+        category: &Category,
+        preview: Option<Vec<u8>>,
+    ) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert_category.sql"),
+                &[&category.title, &category.description, &preview],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
     pub async fn food_in_category(
         &self,
         category_id: ID,

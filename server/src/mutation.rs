@@ -2,9 +2,12 @@
 // Contacts: <nikita.dudko.95@gmail.com>
 // Licensed under the MIT License.
 
-use std::sync::Arc;
+use std::{
+    io::{self, Read},
+    sync::Arc,
+};
 
-use async_graphql::{Context, Object, Result};
+use async_graphql::{Context, Object, Result, Upload};
 use log::info;
 
 use crate::{auth_from_ctx, db, types::*};
@@ -49,11 +52,34 @@ impl MutationRoot {
             .map(|result| {
                 if result {
                     info!(
-                        "Manager {} set new role for user {username}",
+                        "Manager \"{}\" set new role for user \"{username}\"",
                         current_user.username
                     );
                 }
                 result
+            })
+            .map_err(Into::into)
+    }
+
+    async fn add_category(
+        &self,
+        ctx: &Context<'_>,
+        category: Category,
+        preview: Option<Upload>,
+    ) -> Result<ID> {
+        let current_user = self.current_user(ctx).await?;
+        if current_user.role != UserRole::Manager {
+            return Err("access denied".into());
+        }
+        self.db
+            .add_category(&category, read_preview(ctx, preview)?)
+            .await
+            .map(|id| {
+                info!(
+                    "Manager \"{}\" added new category \"{}\"",
+                    current_user.username, category.title
+                );
+                id
             })
             .map_err(Into::into)
     }
@@ -66,7 +92,7 @@ impl MutationRoot {
             .await
             .map(|id| {
                 info!(
-                    "User {username} added food with ID {} to favorites",
+                    "User \"{username}\" added food with ID {} to favorites",
                     favorite.food_id
                 );
                 id
@@ -81,10 +107,20 @@ impl MutationRoot {
             .await
             .map(|result| {
                 if result {
-                    info!("User {username} deleted favorite with ID {id}");
+                    info!("User \"{username}\" deleted favorite with ID {id}");
                 }
                 result
             })
             .map_err(Into::into)
     }
+}
+
+fn read_preview(ctx: &Context<'_>, preview: Option<Upload>) -> io::Result<Option<Vec<u8>>> {
+    if preview.is_none() {
+        return Ok(None);
+    }
+    let mut buf = Vec::new();
+    let mut file = preview.unwrap().value(ctx)?.content;
+    file.read_to_end(&mut buf)?;
+    Ok(Some(buf))
 }

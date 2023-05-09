@@ -80,7 +80,7 @@ async fn sign_up(
     db.add_user(user.into_inner())
         .await
         .map(|id| {
-            info!("New customer {username} signed up");
+            info!("New customer \"{username}\" signed up");
             HttpResponse::Ok().body(id.to_string())
         })
         .unwrap_or_else(|err| HttpResponse::BadRequest().body(err.to_string()))

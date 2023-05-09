@@ -37,7 +37,7 @@ pub async fn auth_validator(
         }
     }
 
-    warn!("User {user} failed to authenticate");
+    warn!("User \"{user}\" failed to authenticate");
     let config = req.app_data::<Config>().cloned().unwrap_or_default();
     Err((AuthenticationError::from(config).into(), req))
 }
