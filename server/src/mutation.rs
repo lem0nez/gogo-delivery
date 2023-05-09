@@ -95,7 +95,7 @@ impl MutationRoot {
             .map(|result| {
                 if result {
                     info!(
-                        "Manager {} deleted category with ID {id}",
+                        "Manager \"{}\" deleted category with ID {id}",
                         current_user.username
                     );
                 }
@@ -104,7 +104,29 @@ impl MutationRoot {
             .map_err(Into::into)
     }
 
-    /// Returns ID of the new favorite item.
+    async fn add_food(
+        &self,
+        ctx: &Context<'_>,
+        food: IndexedFood,
+        preview: Option<Upload>,
+    ) -> Result<ID> {
+        let current_user = self.current_user(ctx).await?;
+        if current_user.role != UserRole::Manager {
+            return Err("access denied".into());
+        }
+        self.db
+            .add_food(&food, read_preview(ctx, preview)?)
+            .await
+            .map(|id| {
+                info!(
+                    "Manager \"{}\" added new food \"{}\"",
+                    current_user.username, food.title
+                );
+                id
+            })
+            .map_err(Into::into)
+    }
+
     async fn add_user_favorite(&self, ctx: &Context<'_>, favorite: IndexedFavorite) -> Result<ID> {
         let username = auth_from_ctx(ctx).user_id();
         self.db

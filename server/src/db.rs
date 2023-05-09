@@ -162,6 +162,28 @@ impl Client {
         Ok(food)
     }
 
+    pub async fn add_food(
+        &self,
+        food: &IndexedFood,
+        preview: Option<Vec<u8>>,
+    ) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert_food.sql"),
+                &[
+                    &food.title,
+                    &food.description,
+                    &preview,
+                    &food.category_id,
+                    &food.count,
+                    &food.is_alcohol,
+                    &food.price,
+                ],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
     pub async fn preview(&self, of: PreviewOf, id: ID) -> PostgresResult<Vec<u8>> {
         self.client
             .query_one(
