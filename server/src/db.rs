@@ -47,7 +47,7 @@ impl Client {
         password: &str,
     ) -> PostgresResult<bool> {
         self.is_true(
-            include_str!("sql/is_credentials_valid.sql"),
+            include_str!("sql/check/credentials_valid.sql"),
             &[&username, &sha256(password)],
         )
         .await
@@ -55,14 +55,14 @@ impl Client {
 
     pub async fn user_by_name(&self, username: &str) -> PostgresResult<User> {
         self.client
-            .query_one(include_str!("sql/select_user_by_name.sql"), &[&username])
+            .query_one(include_str!("sql/select/user_by_name.sql"), &[&username])
             .await
             .map(Into::into)
     }
 
     pub async fn users(&self) -> PostgresResult<Vec<User>> {
         self.client
-            .query(include_str!("sql/select_users.sql"), &[])
+            .query(include_str!("sql/select/users.sql"), &[])
             .await
             .map(from_rows)
     }
@@ -70,7 +70,7 @@ impl Client {
     pub async fn add_user(&self, user: User) -> PostgresResult<ID> {
         self.client
             .query_one(
-                include_str!("sql/insert_user.sql"),
+                include_str!("sql/insert/user.sql"),
                 &[
                     &user.username,
                     &user.password,
@@ -86,7 +86,7 @@ impl Client {
     pub async fn set_user_role(&self, username: &str, role: UserRole) -> PostgresResult<bool> {
         self.client
             .execute(
-                include_str!("sql/update_user_role.sql"),
+                include_str!("sql/update/user_role.sql"),
                 &[&self.user_id_by_name(username).await?, &role],
             )
             .await
@@ -96,7 +96,7 @@ impl Client {
     pub async fn user_notifications(&self, username: &str) -> PostgresResult<Vec<Notification>> {
         self.client
             .query(
-                include_str!("sql/select_user_notifications.sql"),
+                include_str!("sql/select/user_notifications.sql"),
                 &[&self.user_id_by_name(username).await?],
             )
             .await
@@ -106,7 +106,7 @@ impl Client {
     pub async fn user_addresses(&self, username: &str) -> PostgresResult<Vec<Address>> {
         self.client
             .query(
-                include_str!("sql/select_user_addresses.sql"),
+                include_str!("sql/select/user_addresses.sql"),
                 &[&self.user_id_by_name(username).await?],
             )
             .await
@@ -115,7 +115,7 @@ impl Client {
 
     pub async fn categories(&self) -> PostgresResult<Vec<Category>> {
         self.client
-            .query(include_str!("sql/select_categories.sql"), &[])
+            .query(include_str!("sql/select/categories.sql"), &[])
             .await
             .map(from_rows)
     }
@@ -127,7 +127,7 @@ impl Client {
     ) -> PostgresResult<ID> {
         self.client
             .query_one(
-                include_str!("sql/insert_category.sql"),
+                include_str!("sql/insert/category.sql"),
                 &[&category.title, &category.description, &preview],
             )
             .await
@@ -136,7 +136,7 @@ impl Client {
 
     pub async fn delete_category(&self, id: ID) -> PostgresResult<bool> {
         self.client
-            .execute(include_str!("sql/delete_category.sql"), &[&id])
+            .execute(include_str!("sql/delete/category.sql"), &[&id])
             .await
             .map(|modified_rows| modified_rows != 0)
     }
@@ -150,7 +150,7 @@ impl Client {
         let mut food = self
             .client
             .query(
-                include_str!("sql/select_food_in_category.sql"),
+                include_str!("sql/select/food_in_category.sql"),
                 &[&category_id],
             )
             .await
@@ -169,7 +169,7 @@ impl Client {
     ) -> PostgresResult<ID> {
         self.client
             .query_one(
-                include_str!("sql/insert_food.sql"),
+                include_str!("sql/insert/food.sql"),
                 &[
                     &food.title,
                     &food.description,
@@ -188,8 +188,8 @@ impl Client {
         self.client
             .query_one(
                 match of {
-                    PreviewOf::Category => include_str!("sql/select_category_preview.sql"),
-                    PreviewOf::Food => include_str!("sql/select_food_preview.sql"),
+                    PreviewOf::Category => include_str!("sql/select/category_preview.sql"),
+                    PreviewOf::Food => include_str!("sql/select/food_preview.sql"),
                 },
                 &[&id],
             )
@@ -199,7 +199,7 @@ impl Client {
 
     pub async fn is_user_favorite(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
         self.is_true(
-            include_str!("sql/is_user_favorite.sql"),
+            include_str!("sql/check/user_favorite.sql"),
             &[&self.user_id_by_name(username).await?, &food_id],
         )
         .await
@@ -209,13 +209,13 @@ impl Client {
         let user_id = self.user_id_by_name(username).await?;
         let mut food = self
             .query_food(
-                include_str!("sql/select_user_favorite_food.sql"),
+                include_str!("sql/select/user_favorite_food.sql"),
                 &[&user_id],
             )
             .await?;
         let indexed_favorites: Vec<IndexedFavorite> = self
             .client
-            .query(include_str!("sql/select_user_favorites.sql"), &[&user_id])
+            .query(include_str!("sql/select/user_favorites.sql"), &[&user_id])
             .await
             .map(from_rows)?;
 
@@ -240,7 +240,7 @@ impl Client {
     ) -> PostgresResult<ID> {
         self.client
             .query_one(
-                include_str!("sql/insert_user_favorite.sql"),
+                include_str!("sql/insert/user_favorite.sql"),
                 &[&self.user_id_by_name(username).await?, &favorite.food_id],
             )
             .await
@@ -250,7 +250,7 @@ impl Client {
     pub async fn delete_user_favorite(&self, username: &str, id: ID) -> PostgresResult<bool> {
         self.client
             .execute(
-                include_str!("sql/delete_user_favorite.sql"),
+                include_str!("sql/delete/user_favorite.sql"),
                 &[&self.user_id_by_name(username).await?, &id],
             )
             .await
@@ -259,7 +259,7 @@ impl Client {
 
     pub async fn is_in_user_cart(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
         self.is_true(
-            include_str!("sql/is_in_user_cart.sql"),
+            include_str!("sql/check/in_user_cart.sql"),
             &[&self.user_id_by_name(username).await?, &food_id],
         )
         .await
@@ -274,13 +274,13 @@ impl Client {
         let user_id = self.user_id_by_name(username).await?;
         let mut food = self
             .query_food(
-                include_str!("sql/select_food_in_user_cart.sql"),
+                include_str!("sql/select/food_in_user_cart.sql"),
                 &[&user_id],
             )
             .await?;
         let mut indexed_cart: Vec<IndexedCartItem> = self
             .client
-            .query(include_str!("sql/select_user_cart.sql"), &[&user_id])
+            .query(include_str!("sql/select/user_cart.sql"), &[&user_id])
             .await
             .map(from_rows)?;
 
@@ -304,7 +304,7 @@ impl Client {
     }
 
     pub async fn orders(&self, filter: OrdersFilter) -> anyhow::Result<Vec<Order>> {
-        self.query_orders(include_str!("sql/select_orders.sql"), &[], filter)
+        self.query_orders(include_str!("sql/select/orders.sql"), &[], filter)
             .await
     }
 
@@ -314,7 +314,7 @@ impl Client {
         filter: OrdersFilter,
     ) -> anyhow::Result<Vec<Order>> {
         self.query_orders(
-            include_str!("sql/select_user_orders.sql"),
+            include_str!("sql/select/user_orders.sql"),
             &[&self.user_id_by_name(username).await?],
             filter,
         )
@@ -323,7 +323,7 @@ impl Client {
 
     async fn user_by_id(&self, id: ID) -> PostgresResult<User> {
         self.client
-            .query_one(include_str!("sql/select_user_by_id.sql"), &[&id])
+            .query_one(include_str!("sql/select/user_by_id.sql"), &[&id])
             .await
             .map(Into::into)
     }
@@ -334,7 +334,7 @@ impl Client {
 
     async fn address_by_id(&self, id: ID) -> PostgresResult<Address> {
         self.client
-            .query_one(include_str!("sql/select_address_by_id.sql"), &[&id])
+            .query_one(include_str!("sql/select/address_by_id.sql"), &[&id])
             .await
             .map(Into::into)
     }
@@ -405,11 +405,11 @@ impl Client {
 
     async fn order_items(&self, order_id: ID) -> anyhow::Result<Vec<OrderItem>> {
         let mut food = self
-            .query_food(include_str!("sql/select_order_food.sql"), &[&order_id])
+            .query_food(include_str!("sql/select/order_food.sql"), &[&order_id])
             .await?;
         let indexed_items: Vec<IndexedOrderItem> = self
             .client
-            .query(include_str!("sql/select_order_items.sql"), &[&order_id])
+            .query(include_str!("sql/select/order_items.sql"), &[&order_id])
             .await
             .map(from_rows)?;
 
@@ -429,7 +429,7 @@ impl Client {
 
     async fn order_feedback(&self, order_id: ID) -> PostgresResult<Option<Feedback>> {
         self.client
-            .query_opt(include_str!("sql/select_order_feedback.sql"), &[&order_id])
+            .query_opt(include_str!("sql/select/order_feedback.sql"), &[&order_id])
             .await
             .map(|row| row.map(Into::into))
     }
