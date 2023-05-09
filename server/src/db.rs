@@ -184,6 +184,13 @@ impl Client {
             .map(|row| row.get(0))
     }
 
+    pub async fn delete_food(&self, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(include_str!("sql/delete/food.sql"), &[&id])
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn preview(&self, of: PreviewOf, id: ID) -> PostgresResult<Vec<u8>> {
         self.client
             .query_one(

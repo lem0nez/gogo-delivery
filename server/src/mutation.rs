@@ -127,6 +127,26 @@ impl MutationRoot {
             .map_err(Into::into)
     }
 
+    async fn delete_food(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        let current_user = self.current_user(ctx).await?;
+        if current_user.role != UserRole::Manager {
+            return Err("access denied".into());
+        }
+        self.db
+            .delete_food(id)
+            .await
+            .map(|result| {
+                if result {
+                    info!(
+                        "Manager \"{}\" deleted food with ID {id}",
+                        current_user.username
+                    );
+                }
+                result
+            })
+            .map_err(Into::into)
+    }
+
     async fn add_user_favorite(&self, ctx: &Context<'_>, favorite: IndexedFavorite) -> Result<ID> {
         let username = auth_from_ctx(ctx).user_id();
         self.db
