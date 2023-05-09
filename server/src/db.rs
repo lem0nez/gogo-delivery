@@ -134,6 +134,13 @@ impl Client {
             .map(|row| row.get(0))
     }
 
+    pub async fn delete_category(&self, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(include_str!("sql/delete_category.sql"), &[&id])
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn food_in_category(
         &self,
         category_id: ID,
