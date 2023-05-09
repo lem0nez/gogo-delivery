@@ -21,13 +21,16 @@ impl MutationRoot {
 #[Object]
 impl MutationRoot {
     /// Returns ID of the new favorite item.
-    async fn add_user_favorite(
-        &self,
-        ctx: &Context<'_>,
-        favorite: IndexedFavorite,
-    ) -> Result<ID> {
+    async fn add_user_favorite(&self, ctx: &Context<'_>, favorite: IndexedFavorite) -> Result<ID> {
         self.db
             .add_user_favorite(auth_from_ctx(ctx).user_id(), favorite)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn delete_user_favorite(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        self.db
+            .delete_user_favorite(auth_from_ctx(ctx).user_id(), id)
             .await
             .map_err(Into::into)
     }

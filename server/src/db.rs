@@ -178,6 +178,16 @@ impl Client {
             .map(|row| row.get(0))
     }
 
+    pub async fn delete_user_favorite(&self, username: &str, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/delete_user_favorite.sql"),
+                &[&self.user_id_by_name(username).await?, &id],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn is_in_user_cart(&self, username: &str, food_id: ID) -> PostgresResult<bool> {
         self.is_true(
             include_str!("sql/is_in_user_cart.sql"),
