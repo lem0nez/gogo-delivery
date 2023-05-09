@@ -61,6 +61,52 @@ impl MutationRoot {
             .map_err(Into::into)
     }
 
+    async fn send_direct_notification(
+        &self,
+        ctx: &Context<'_>,
+        target_user_id: ID,
+        notification: Notification,
+    ) -> Result<ID> {
+        let current_user = self.current_user(ctx).await?;
+        if let UserRole::Customer = current_user.role {
+            return Err("access denied".into());
+        }
+        self.db
+            .add_user_notification(target_user_id, &notification)
+            .await
+            .map(|id| {
+                info!(
+                    "User \"{}\" sent direct notification to user with ID {target_user_id}",
+                    current_user.username
+                );
+                id
+            })
+            .map_err(Into::into)
+    }
+
+    async fn broadcast_notification(
+        &self,
+        ctx: &Context<'_>,
+        target_users_role: UserRole,
+        notification: Notification,
+    ) -> Result<Vec<ID>> {
+        let current_user = self.current_user(ctx).await?;
+        if current_user.role != UserRole::Manager {
+            return Err("access denied".into());
+        }
+        self.db
+            .add_notifications(target_users_role, notification)
+            .await
+            .map(|ids| {
+                info!(
+                    "Manager \"{}\" broadcasted a notification",
+                    current_user.username
+                );
+                ids
+            })
+            .map_err(Into::into)
+    }
+
     async fn add_user_address(&self, ctx: &Context<'_>, address: Address) -> Result<ID> {
         let username = auth_from_ctx(ctx).user_id();
         self.db

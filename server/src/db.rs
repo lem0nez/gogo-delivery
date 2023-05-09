@@ -103,6 +103,37 @@ impl Client {
             .map(from_rows)
     }
 
+    pub async fn add_user_notification(
+        &self,
+        user_id: ID,
+        notification: &Notification,
+    ) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert/user_notification.sql"),
+                &[&user_id, &notification.title, &notification.description],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
+    pub async fn add_notifications(
+        &self,
+        target_users_role: UserRole,
+        notification: Notification,
+    ) -> PostgresResult<Vec<ID>> {
+        let mut notification_ids = Vec::new();
+        for user in self
+            .users()
+            .await?
+            .into_iter()
+            .filter(|user| user.role == target_users_role)
+        {
+            notification_ids.push(self.add_user_notification(user.id, &notification).await?)
+        }
+        Ok(notification_ids)
+    }
+
     pub async fn user_addresses(&self, username: &str) -> PostgresResult<Vec<Address>> {
         self.client
             .query(
