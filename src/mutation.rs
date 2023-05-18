@@ -247,6 +247,35 @@ impl MutationRoot {
             })
             .map_err(Into::into)
     }
+
+    async fn add_user_cart_item(&self, ctx: &Context<'_>, item: IndexedCartItem) -> Result<ID> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .add_user_cart_item(username, &item)
+            .await
+            .map(|id| {
+                info!(
+                    "User \"{username}\" added food with ID {} into the cart",
+                    item.food_id
+                );
+                id
+            })
+            .map_err(Into::into)
+    }
+
+    async fn delete_user_cart_item(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .delete_user_cart_item(username, id)
+            .await
+            .map(|result| {
+                if result {
+                    info!("User \"{username}\" deleted cart item with ID {id}");
+                }
+                result
+            })
+            .map_err(Into::into)
+    }
 }
 
 fn read_preview(ctx: &Context<'_>, preview: Option<Upload>) -> io::Result<Option<Vec<u8>>> {

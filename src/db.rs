@@ -368,6 +368,34 @@ impl Client {
         Ok(cart)
     }
 
+    pub async fn add_user_cart_item(
+        &self,
+        username: &str,
+        item: &IndexedCartItem,
+    ) -> PostgresResult<ID> {
+        self.client
+            .query_one(
+                include_str!("sql/insert/user_cart.sql"),
+                &[
+                    &self.user_id_by_name(username).await?,
+                    &item.food_id,
+                    &item.count,
+                ],
+            )
+            .await
+            .map(|row| row.get(0))
+    }
+
+    pub async fn delete_user_cart_item(&self, username: &str, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/delete/user_cart.sql"),
+                &[&self.user_id_by_name(username).await?, &id],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn orders(&self, filter: OrdersFilter) -> anyhow::Result<Vec<Order>> {
         self.query_orders(include_str!("sql/select/orders.sql"), &[], filter)
             .await
