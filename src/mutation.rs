@@ -292,6 +292,21 @@ impl MutationRoot {
             })
             .map_err(Into::into)
     }
+
+    async fn add_user_feedback(&self, ctx: &Context<'_>, feedback: Feedback) -> Result<ID> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .add_user_feedback(username, &feedback)
+            .await
+            .map(|id| {
+                info!(
+                    "User \"{username}\" leave a feedback for order with ID {}",
+                    feedback.order_id
+                );
+                id
+            })
+            .map_err(Into::into)
+    }
 }
 
 fn read_preview(ctx: &Context<'_>, preview: Option<Upload>) -> io::Result<Option<Vec<u8>>> {

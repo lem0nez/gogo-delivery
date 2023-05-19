@@ -454,6 +454,41 @@ impl Client {
         Ok(order_id)
     }
 
+    pub async fn add_user_feedback(
+        &self,
+        username: &str,
+        feedback: &Feedback,
+    ) -> anyhow::Result<ID> {
+        if feedback.rating.is_none() && feedback.comment.is_none() {
+            return Err(anyhow!("either rating or comment must be provided"));
+        }
+
+        let user_id = self.user_id_by_name(username).await?;
+        let order = self
+            .query_orders(
+                include_str!("sql/select/user_order.sql"),
+                &[&user_id, &feedback.order_id],
+                OrdersFilter::Completed,
+            )
+            .await?
+            .into_iter()
+            .next();
+        if order.is_none() {
+            return Err(anyhow!(
+                "there is no completed order with such ID that owned by the user"
+            ));
+        }
+
+        self.client
+            .query_one(
+                include_str!("sql/insert/feedback.sql"),
+                &[&feedback.order_id, &feedback.rating, &feedback.comment],
+            )
+            .await
+            .map(|row| row.get(0))
+            .map_err(Into::into)
+    }
+
     async fn user_by_id(&self, id: ID) -> PostgresResult<User> {
         self.client
             .query_one(include_str!("sql/select/user_by_id.sql"), &[&id])
