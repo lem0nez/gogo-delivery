@@ -276,6 +276,22 @@ impl MutationRoot {
             })
             .map_err(Into::into)
     }
+
+    async fn make_order_from_user_cart(
+        &self,
+        ctx: &Context<'_>,
+        order: IndexedOrder,
+    ) -> Result<ID> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .make_order_from_user_cart(username, order)
+            .await
+            .map(|id| {
+                info!("User \"{username}\" made an order with ID {id}");
+                id
+            })
+            .map_err(Into::into)
+    }
 }
 
 fn read_preview(ctx: &Context<'_>, preview: Option<Upload>) -> io::Result<Option<Vec<u8>>> {

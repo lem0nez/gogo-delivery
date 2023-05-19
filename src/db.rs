@@ -414,6 +414,46 @@ impl Client {
         .await
     }
 
+    pub async fn make_order_from_user_cart(
+        &self,
+        username: &str,
+        order: IndexedOrder,
+    ) -> anyhow::Result<ID> {
+        let user_id = self.user_id_by_name(username).await?;
+        let cart = self
+            .user_cart(username, SortCartBy::AddTime, SortOrder::Ascending)
+            .await?;
+        if cart.is_empty() {
+            return Err(anyhow!("user cart is empty"));
+        }
+
+        let order_id = self
+            .client
+            .query_one(
+                include_str!("sql/insert/user_order.sql"),
+                &[&user_id, &order.address_id],
+            )
+            .await?
+            .get(0);
+        for cart_item in cart {
+            self.client
+                .execute(
+                    include_str!("sql/insert/order_food.sql"),
+                    &[
+                        &order_id,
+                        &cart_item.indexed_cart_item.food_id,
+                        &cart_item.indexed_cart_item.count,
+                    ],
+                )
+                .await?;
+        }
+
+        self.client
+            .execute(include_str!("sql/delete/user_cart_all.sql"), &[&user_id])
+            .await?;
+        Ok(order_id)
+    }
+
     async fn user_by_id(&self, id: ID) -> PostgresResult<User> {
         self.client
             .query_one(include_str!("sql/select/user_by_id.sql"), &[&id])

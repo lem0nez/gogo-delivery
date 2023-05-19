@@ -1,15 +1,13 @@
-INSERT INTO cart
+INSERT INTO orders
 (
     customer_id,
-    food_id,
-    count,
-    add_time
+    address_id,
+    create_time
 )
 VALUES
 (
     $1,
     $2,
-    $3,
     CURRENT_TIMESTAMP
 )
 RETURNING id;

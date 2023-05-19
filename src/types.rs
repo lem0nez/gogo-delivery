@@ -273,6 +273,7 @@ pub struct Favorite {
 pub struct IndexedOrder {
     #[graphql(skip_input)]
     pub id: ID,
+    #[graphql(skip_input)]
     pub customer_id: ID,
     pub address_id: ID,
     #[graphql(skip_input)]
