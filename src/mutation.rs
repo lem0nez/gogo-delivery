@@ -293,6 +293,54 @@ impl MutationRoot {
             .map_err(Into::into)
     }
 
+    async fn take_order(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        let current_user = self.current_user(ctx).await?;
+        if current_user.role != UserRole::Rider {
+            return Err("access denied".into());
+        }
+        self.db
+            .take_order(&current_user.username, id)
+            .await
+            .map(|result| {
+                if result {
+                    info!(
+                        "Rider \"{}\" took order with ID {id}",
+                        current_user.username
+                    );
+                }
+                result
+            })
+            .map_err(Into::into)
+    }
+
+    async fn complete_order(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .complete_order(username, id)
+            .await
+            .map(|result| {
+                if result {
+                    info!("Rider \"{username}\" completed order with ID {id}");
+                }
+                result
+            })
+            .map_err(Into::into)
+    }
+
+    async fn delete_untaken_user_order(&self, ctx: &Context<'_>, id: ID) -> Result<bool> {
+        let username = auth_from_ctx(ctx).user_id();
+        self.db
+            .delete_untaken_user_order(username, id)
+            .await
+            .map(|result| {
+                if result {
+                    info!("User \"{username}\" deleted untaken order with ID {id}");
+                }
+                result
+            })
+            .map_err(Into::into)
+    }
+
     async fn add_user_feedback(&self, ctx: &Context<'_>, feedback: Feedback) -> Result<ID> {
         let username = auth_from_ctx(ctx).user_id();
         self.db

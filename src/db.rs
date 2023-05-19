@@ -454,6 +454,36 @@ impl Client {
         Ok(order_id)
     }
 
+    pub async fn take_order(&self, username: &str, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/update/untaken_order.sql"),
+                &[&self.user_id_by_name(username).await?, &id],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
+    pub async fn complete_order(&self, username: &str, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/update/taken_order.sql"),
+                &[&id, &self.user_id_by_name(username).await?],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
+    pub async fn delete_untaken_user_order(&self, username: &str, id: ID) -> PostgresResult<bool> {
+        self.client
+            .execute(
+                include_str!("sql/delete/untaken_user_order.sql"),
+                &[&self.user_id_by_name(username).await?, &id],
+            )
+            .await
+            .map(|modified_rows| modified_rows != 0)
+    }
+
     pub async fn add_user_feedback(
         &self,
         username: &str,
