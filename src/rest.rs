@@ -21,6 +21,7 @@ use serde::Deserialize;
 use crate::{
     auth_validator,
     db::{self, PreviewOf},
+    sha256,
     types::{User, ID},
     AppSchema,
 };
@@ -75,7 +76,7 @@ async fn sign_up(
     let username = auth.user_id();
     user.username = username.to_string();
     if let Some(password) = auth.password() {
-        user.password = password.to_string();
+        user.password = sha256(password);
     }
     db.add_user(user.into_inner())
         .await

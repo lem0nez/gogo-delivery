@@ -87,7 +87,7 @@ impl Client {
         self.client
             .execute(
                 include_str!("sql/update/user_role.sql"),
-                &[&self.user_id_by_name(username).await?, &role],
+                &[&role, &self.user_id_by_name(username).await?],
             )
             .await
             .map(|modified_rows| modified_rows != 0)

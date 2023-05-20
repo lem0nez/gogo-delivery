@@ -4,7 +4,7 @@ CREATE TABLE public.orders
     customer_id serial NOT NULL,
     address_id serial NOT NULL,
     create_time timestamp without time zone NOT NULL,
-    rider_id serial,
+    rider_id integer,
     completed_time timestamp without time zone,
     PRIMARY KEY (id),
     CONSTRAINT customer_id FOREIGN KEY (customer_id)
