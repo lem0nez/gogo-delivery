@@ -7,7 +7,16 @@ INSERT INTO orders
 VALUES
 (
     $1,
-    $2,
+    (
+        SELECT
+            id
+        FROM
+            addresses
+        WHERE
+            id = $2
+        AND
+            customer_id = $3
+    ),
     CURRENT_TIMESTAMP
 )
 RETURNING id;

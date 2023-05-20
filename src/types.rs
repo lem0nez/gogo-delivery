@@ -357,7 +357,7 @@ pub struct Feedback {
     #[graphql(skip_output)]
     pub order_id: ID,
     /// From 0 to 5.
-    pub rating: Option<i8>,
+    pub rating: Option<i16>,
     pub comment: Option<String>,
 }
 

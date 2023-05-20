@@ -431,7 +431,7 @@ impl Client {
             .client
             .query_one(
                 include_str!("sql/insert/user_order.sql"),
-                &[&user_id, &order.address_id],
+                &[&user_id, &order.address_id, &user_id],
             )
             .await?
             .get(0);
