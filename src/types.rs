@@ -240,6 +240,13 @@ impl SortCartBy {
 pub struct CartItem {
     pub food: Food,
     pub indexed_cart_item: IndexedCartItem,
+    pub total_price: Decimal,
+}
+
+#[derive(SimpleObject)]
+pub struct Cart {
+    pub items: Vec<CartItem>,
+    pub total_price: Decimal,
 }
 
 #[derive(SimpleObject, InputObject)]
@@ -320,6 +327,7 @@ pub struct Order {
     pub address: Address,
     pub rider: Option<User>,
     pub items: Vec<OrderItem>,
+    pub total_price: Decimal,
     pub feedback: Option<Feedback>,
     pub indexed_order: IndexedOrder,
 }
@@ -347,6 +355,7 @@ impl From<Row> for IndexedOrderItem {
 pub struct OrderItem {
     pub food: Food,
     pub indexed_item: IndexedOrderItem,
+    pub total_price: Decimal,
 }
 
 #[derive(SimpleObject, InputObject)]

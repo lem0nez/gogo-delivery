@@ -7,6 +7,7 @@ use std::{collections::HashMap, env};
 use anyhow::anyhow;
 use log::error;
 use postgres_types::ToSql;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use tokio_postgres::{NoTls, Row};
 
@@ -335,7 +336,7 @@ impl Client {
         username: &str,
         sort_by: SortCartBy,
         sort_order: SortOrder,
-    ) -> anyhow::Result<Vec<CartItem>> {
+    ) -> anyhow::Result<Cart> {
         let user_id = self.user_id_by_name(username).await?;
         let mut food = self
             .query_food(
@@ -354,18 +355,23 @@ impl Client {
             indexed_cart.reverse();
         }
 
-        let mut cart = Vec::with_capacity(indexed_cart.capacity());
+        let mut items = Vec::with_capacity(indexed_cart.capacity());
         for indexed_cart_item in indexed_cart {
-            cart.push(CartItem {
-                food: food
-                    // We can move a food item because it's
-                    // unique per user (constraint 'food_per_customer').
-                    .remove(&indexed_cart_item.food_id)
-                    .ok_or(anyhow!("database was changed during data merging"))?,
+            let food = food
+                // We can move a food item because it's
+                // unique per user (constraint 'food_per_customer').
+                .remove(&indexed_cart_item.food_id)
+                .ok_or(anyhow!("database was changed during data merging"))?;
+            items.push(CartItem {
+                total_price: food.indexed_food.price * Decimal::from(indexed_cart_item.count),
+                food,
                 indexed_cart_item,
             })
         }
-        Ok(cart)
+        Ok(Cart {
+            total_price: items.iter().map(|item| item.total_price).sum(),
+            items,
+        })
     }
 
     pub async fn add_user_cart_item(
@@ -420,10 +426,11 @@ impl Client {
         order: IndexedOrder,
     ) -> anyhow::Result<ID> {
         let user_id = self.user_id_by_name(username).await?;
-        let cart = self
+        let cart_items = self
             .user_cart(username, SortCartBy::AddTime, SortOrder::Ascending)
-            .await?;
-        if cart.is_empty() {
+            .await?
+            .items;
+        if cart_items.is_empty() {
             return Err(anyhow!("user cart is empty"));
         }
 
@@ -435,7 +442,7 @@ impl Client {
             )
             .await?
             .get(0);
-        for cart_item in cart {
+        for cart_item in cart_items {
             self.client
                 .execute(
                     include_str!("sql/insert/order_food.sql"),
@@ -586,6 +593,7 @@ impl Client {
 
         let mut orders = Vec::with_capacity(indexed_orders.capacity());
         for indexed_order in indexed_orders {
+            let items = self.order_items(indexed_order.id).await?;
             orders.push(Order {
                 customer: self.user_by_id(indexed_order.customer_id).await?,
                 address: self.address_by_id(indexed_order.address_id).await?,
@@ -593,7 +601,8 @@ impl Client {
                     Some(id) => Some(self.user_by_id(id).await?),
                     None => None,
                 },
-                items: self.order_items(indexed_order.id).await?,
+                total_price: items.iter().map(|item| item.total_price).sum(),
+                items,
                 feedback: self.order_feedback(indexed_order.id).await?,
                 indexed_order,
             })
@@ -613,12 +622,14 @@ impl Client {
 
         let mut items = Vec::with_capacity(indexed_items.capacity());
         for indexed_item in indexed_items {
+            let food = food
+                // We can move a food item because it's
+                // unique per order (constraint 'food_per_order').
+                .remove(&indexed_item.food_id)
+                .ok_or(anyhow!("database was changed during data merging"))?;
             items.push(OrderItem {
-                food: food
-                    // We can move a food item because it's
-                    // unique per order (constraint 'food_per_order').
-                    .remove(&indexed_item.food_id)
-                    .ok_or(anyhow!("database was changed during data merging"))?,
+                total_price: food.indexed_food.price * Decimal::from(indexed_item.count),
+                food,
                 indexed_item,
             })
         }

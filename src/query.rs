@@ -96,7 +96,7 @@ impl QueryRoot {
         ctx: &Context<'_>,
         sort_by: SortCartBy,
         sort_order: SortOrder,
-    ) -> Result<Vec<CartItem>> {
+    ) -> Result<Cart> {
         self.db
             .user_cart(auth_from_ctx(ctx).user_id(), sort_by, sort_order)
             .await
